@@ -63,3 +63,7 @@ def test_banco_inexistente_da_erro_e_nao_cria_arquivo(tmp_path):
     with pytest.raises(Exception):
         get_schema(str(caminho))
     assert not caminho.exists()
+
+
+def test_booleanos_mostram_zero_e_um(schema):
+    assert coluna(schema, "suporte", "resolvido")["valores"] == ["0", "1"]

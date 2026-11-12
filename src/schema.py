@@ -24,7 +24,7 @@ def _descrever_coluna(conn, tabela, nome, tipo):
         and DATA_ISO.match(maximo)
     ):
         coluna["intervalo"] = [minimo, maximo]
-    elif 0 < distintos <= MAX_CATEGORIAS and tipo in ("TEXT", "INTEGER"):
+    elif 0 < distintos <= MAX_CATEGORIAS and tipo in ("TEXT", "INTEGER", "BOOLEAN"):
         linhas = conn.execute(
             f'SELECT DISTINCT "{nome}" FROM "{tabela}" '
             f'WHERE "{nome}" IS NOT NULL ORDER BY "{nome}"'
