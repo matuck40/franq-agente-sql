@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Ambiente virtual
+.venv/
+
+# Segredos
+.env
+.env.*
+
+# Dados (o banco do desafio não vai para o repositório)
+data/*
+!data/.gitkeep
+
+# Sistema
+.DS_Store
