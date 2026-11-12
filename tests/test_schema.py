@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from src.schema import get_schema
+from src.schema import format_schema, get_schema
 
 DB_PATH = Path("data/anexo_desafio_1.db")
 TABELAS_ESPERADAS = {"clientes", "compras", "suporte", "campanhas_marketing"}
@@ -29,15 +29,24 @@ def test_colunas_trazem_nome_e_tipo(schema):
     assert coluna(schema, "clientes", "idade")["tipo"] == "INTEGER"
 
 
-def test_exemplos_so_nas_colunas_de_texto(schema):
-    assert "São Paulo" in coluna(schema, "clientes", "estado")["exemplos"]
-    assert "exemplos" not in coluna(schema, "clientes", "idade")
+def test_categoricas_listam_todos_os_valores(schema):
+    assert sorted(coluna(schema, "compras", "canal")["valores"]) == ["App", "Loja Física", "Site"]
 
 
-def test_no_maximo_cinco_exemplos(schema):
-    for colunas in schema.values():
-        for c in colunas:
-            assert len(c.get("exemplos", [])) <= 5
+def test_colunas_pessoais_nao_expoem_valores(schema):
+    for nome in ("nome", "email"):
+        c = coluna(schema, "clientes", nome)
+        assert "valores" not in c and "intervalo" not in c
+
+
+def test_datas_trazem_intervalo(schema):
+    assert coluna(schema, "compras", "data_compra")["intervalo"] == ["2024-07-22", "2025-07-22"]
+
+
+def test_format_schema_texto(schema):
+    texto = format_schema(schema)
+    assert "compras" in texto and "Loja Física" in texto and "2025-07-22" in texto
+    assert "@example" not in texto and "sqlite_sequence" not in texto
 
 
 def test_nao_altera_o_banco():
