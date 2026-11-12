@@ -59,3 +59,18 @@ def test_number_requested_on_multi_row_df_maps_to_table():
 def test_text_requested_with_data_maps_to_table():
     r = escolher_visualizacao(_df(), "texto", None, None)
     assert r["tipo"] == "tabela"
+
+
+def test_one_row_multi_column_chart_maps_to_table():
+    df = pd.DataFrame({"mes": ["jan"], "total": [10]})
+    assert escolher_visualizacao(df, "barra", "mes", "total")["tipo"] == "tabela"
+
+
+def test_zero_row_df_chart_maps_to_table():
+    df = pd.DataFrame({"mes": pd.Series([], dtype=object), "total": pd.Series([], dtype=int)})
+    assert escolher_visualizacao(df, "linha", "mes", "total")["tipo"] == "tabela"
+
+
+def test_same_x_and_y_maps_to_table():
+    r = escolher_visualizacao(_df(), "barra", "total", "total")
+    assert r == {"tipo": "tabela", "x": None, "y": None}

@@ -19,6 +19,8 @@ def escolher_visualizacao(
         return _result("numero")
     if (
         pedido in _CHARTS
+        and len(df) > 1
+        and x != y
         and x in df.columns
         and y in df.columns
         and pd.api.types.is_numeric_dtype(df[y])
