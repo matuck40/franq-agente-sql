@@ -1,4 +1,5 @@
 import hashlib
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -67,3 +68,19 @@ def test_banco_inexistente_da_erro_e_nao_cria_arquivo(tmp_path):
 
 def test_booleanos_mostram_zero_e_um(schema):
     assert coluna(schema, "suporte", "resolvido")["valores"] == ["0", "1"]
+
+
+def test_guarda_pessoal_vale_mesmo_com_poucos_valores_e_datas(tmp_path):
+    caminho = tmp_path / "mini.db"
+    conn = sqlite3.connect(caminho)
+    conn.execute("CREATE TABLE clientes (id INTEGER, nome TEXT, email TEXT)")
+    conn.executemany(
+        "INSERT INTO clientes VALUES (?, ?, ?)",
+        [(1, "Ana", "2024-01-01"), (2, "Bia", "2024-02-02"), (3, "Ana", "2024-03-03")],
+    )
+    conn.commit()
+    conn.close()
+    mini = get_schema(str(caminho))
+    for nome in ("nome", "email"):
+        c = coluna(mini, "clientes", nome)
+        assert "valores" not in c and "intervalo" not in c
