@@ -16,3 +16,6 @@ data/*
 
 # Sistema
 .DS_Store
+
+# Padrão pessoal de trabalho (fica só local)
+PADRAO-DESENVOLVIMENTO.md
