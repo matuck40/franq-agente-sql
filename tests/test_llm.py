@@ -5,7 +5,7 @@ from tests.fakes import FakeToolLLM
 
 
 def test_get_llm_requires_api_key(monkeypatch):
-    import src.llm as llm
+    from src import llm
 
     monkeypatch.setattr(llm, "load_dotenv", lambda *a, **k: None)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

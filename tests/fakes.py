@@ -4,13 +4,14 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
+from pydantic import Field
 
 
 class FakeToolLLM(BaseChatModel):
     """Returns the given AIMessages unchanged, in order, and records inputs."""
 
     respostas: list[AIMessage]
-    recebidas: list[list[BaseMessage]] = []
+    recebidas: list[list[BaseMessage]] = Field(default_factory=list)
     _i: int = 0
 
     def __init__(self, respostas: list[AIMessage], **kwargs: Any):
