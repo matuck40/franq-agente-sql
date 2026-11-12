@@ -13,4 +13,5 @@ def get_llm() -> BaseChatModel:
     load_dotenv()
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("Defina OPENAI_API_KEY no .env")
-    return ChatOpenAI(model=os.getenv("LLM_MODEL", DEFAULT_MODEL))
+    # Bounded wait per request so a stuck API call cannot hang the UI forever.
+    return ChatOpenAI(model=os.getenv("LLM_MODEL", DEFAULT_MODEL), timeout=60, max_retries=2)

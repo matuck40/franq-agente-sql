@@ -36,11 +36,12 @@ START --> agent <---> tools
 ```
 
 - `agent`: the LLM (with two tools bound) reads the conversation and either calls
-  `run_sql`, or calls `final_answer`.
+  `run_sql`, or calls `final_answer`. Tools are bound with `tool_choice="required"`
+  and `parallel_tool_calls=False`, so every turn is exactly one tool call.
 - `tools`: runs the `run_sql` query against the database and sends the result (or the
   error message) back to the agent, which can then correct its SQL.
-- The graph ends when the agent calls `final_answer` (text, final SQL, chart type and
-  x/y columns), or when the turn limit is reached.
+- The graph ends when the agent calls `final_answer` (text, final SQL, chart type,
+  x/y columns and an optional `serie` column), or when the turn limit is reached.
 
 Code layout:
 
@@ -58,8 +59,14 @@ Code layout:
 ## Design decisions
 
 - **Read-only database access.** Queries run on a connection opened with the SQLite URI
-  `mode=ro`, with an authorizer that only allows `SELECT`, reads and functions, and a
-  check that only a single statement is sent. The LLM cannot change the data.
+  `mode=ro`, with an authorizer that only allows the `SELECT`, `READ`, `FUNCTION` and
+  `RECURSIVE` (for `WITH RECURSIVE`) actions, and a check that only a single statement
+  is sent. The LLM cannot change the data.
+- **Bounded queries.** Each query is interrupted after 10 s (an SQLite progress
+  handler checks a deadline) and at most 10,000 rows are fetched. A timeout comes back
+  to the LLM as an error asking for a simpler query; when the row cap is hit, the text
+  sent to the LLM says the result was truncated. This applies both to the agent's
+  queries and to the re-execution of the final SQL.
 - **Final data comes from code, not from the LLM.** The agent returns the final SQL;
   the code re-executes it and shows that result. The numbers on screen are never copied
   from text the LLM wrote.
@@ -72,12 +79,25 @@ Code layout:
   are sent back to the LLM so it can reason about them, so the LLM could still see
   those columns if it selected them in a query.
 - **Bounded loops with a polite fallback.** The agent is limited to 8 turns and the
-  graph has a recursion limit as a safety net. If it cannot finish, the user gets
+  graph has a recursion limit as a safety net. Each OpenAI request has a 60 s timeout
+  and up to 2 retries. If it cannot finish, the user gets
   "Não consegui concluir a análise." plus the last SQL error, if any.
 - **Chart choice is validated.** The LLM may request a bar or line chart, but
   `src/viz.py` checks it against the data (x and y exist and differ, y is numeric,
   more than one row) and falls back to a table otherwise. A 1x1 result is shown as a
   number.
+- **Multi-series charts.** For trends or comparisons per category (for example
+  complaints per month and per channel), the LLM returns long-format data and names the
+  category column in `serie`; the app pivots it into one line or bar per category. If
+  `serie` is missing but x repeats, `src/viz.py` uses the only other non-numeric
+  column; if there is none (or more than one), it shows a table instead of a zigzag
+  line.
+- **The model must always call a tool.** Without `tool_choice="required"` a model can
+  stop mid-investigation with plain text and no data. A plain-text reply is still
+  handled (shown as text) as a safety net. Note that a model or provider that does not
+  support `tool_choice` or `parallel_tool_calls` would reject the request. This has
+  not been checked against the real API: the agent has not yet been run with a real
+  API key in this repository.
 
 ## Tested examples
 
