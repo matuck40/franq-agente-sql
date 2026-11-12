@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import pytest
@@ -52,3 +53,33 @@ def test_permite_cte_recursiva_e_ponto_e_virgula_final():
 def test_ponto_e_virgula_dentro_de_string_nao_conta():
     df = run_query("SELECT 'a;b' AS t", DB_PATH)
     assert df["t"][0] == "a;b"
+
+
+def test_autorizador_bloqueia_antes_do_modo_somente_leitura():
+    # mode=ro alone would say "attempt to write a readonly database"; this message
+    # can only come from the authorizer, so the authorizer layer works on its own.
+    with pytest.raises(SQLError, match="not authorized"):
+        run_query("DELETE FROM clientes", DB_PATH)
+
+
+def test_cte_infinita_e_interrompida_pelo_timeout():
+    sql = (
+        "WITH RECURSIVE c(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM c) "
+        "SELECT COUNT(*) FROM c"
+    )
+    inicio = time.monotonic()
+    with pytest.raises(SQLError, match="demorou mais de 0.5 s"):
+        run_query(sql, DB_PATH, timeout_s=0.5)
+    assert time.monotonic() - inicio < 3
+
+
+def test_limite_de_linhas_marca_truncado():
+    df = run_query("SELECT * FROM compras", DB_PATH, max_linhas=10)
+    assert len(df) == 10 and df.attrs["truncado"] is True
+    assert "resultado truncado" in to_llm_text(df)
+
+
+def test_resultado_completo_nao_e_truncado():
+    df = run_query("SELECT * FROM compras", DB_PATH)
+    assert len(df) == 946 and df.attrs["truncado"] is False
+    assert "resultado truncado" not in to_llm_text(df)
