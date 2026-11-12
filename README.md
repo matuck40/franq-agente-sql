@@ -104,7 +104,7 @@ ano" means 2025-07-22 minus one year up to 2025-07-22, "reclamações" means
 4. **Qual o número de reclamações não resolvidas por canal?**
    Telefone 19, Chat 18, E-mail 14.
 5. **Qual a tendência de reclamações por canal no último ano?**
-   Monthly complaints per channel, 2024-07 to 2025-07 (36 rows, in the script output).
+   Monthly complaints per channel, 2024-07 to 2025-07 (38 rows, in the script output).
    For example, Telefone peaks at 6 in 2024-10 and Chat at 6 in 2025-02. 2024-07 and
    2025-07 are partial months.
 
