@@ -19,3 +19,4 @@ data/*
 
 # Padrão pessoal de trabalho (fica só local)
 PADRAO-DESENVOLVIMENTO.md
+!.env.example

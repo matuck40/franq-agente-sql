@@ -22,6 +22,8 @@ class FakeToolLLM(BaseChatModel):
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs) -> ChatResult:
         self.recebidas.append(list(messages))
+        if self._i >= len(self.respostas):
+            raise AssertionError("FakeToolLLM ran out of responses")
         msg = self.respostas[self._i]
         self._i += 1
         return ChatResult(generations=[ChatGeneration(message=msg)])
