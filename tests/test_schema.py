@@ -61,7 +61,7 @@ def test_nao_altera_o_banco():
 
 def test_banco_inexistente_da_erro_e_nao_cria_arquivo(tmp_path):
     caminho = tmp_path / "nao_existe.db"
-    with pytest.raises(Exception):
+    with pytest.raises(sqlite3.OperationalError):
         get_schema(str(caminho))
     assert not caminho.exists()
 
