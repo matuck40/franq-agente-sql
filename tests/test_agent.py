@@ -83,6 +83,22 @@ def test_para_no_limite_de_passos():
     assert len(llm.recebidas) == 3
 
 
+def test_ferramenta_desconhecida_para_no_limite():
+    llm = FakeToolLLM(
+        [
+            AIMessage(
+                content="", tool_calls=[{"name": "foo", "args": {}, "id": f"c{i}"}]
+            )
+            for i in range(40)
+        ]
+    )
+    r = ask("Pergunta", llm)
+    assert "Não consegui" in r["texto"]
+    assert r["visualizacao"] == "texto"
+    assert r["passos"] == []
+    assert len(llm.recebidas) <= 8
+
+
 def test_resposta_sem_ferramenta_vira_texto():
     llm = FakeToolLLM([AIMessage(content="Não sei")])
     r = ask("Qual o sentido da vida?", llm)

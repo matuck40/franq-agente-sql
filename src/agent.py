@@ -12,6 +12,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.tools import tool
+from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
@@ -84,6 +85,7 @@ def final_answer_tool(
 class _State(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     passos: Annotated[list[Passo], operator.add]
+    rodadas: Annotated[int, operator.add]  # tool rounds (agent turns that called tools)
 
 
 def _tool_calls(msg) -> list[dict]:
@@ -91,7 +93,8 @@ def _tool_calls(msg) -> list[dict]:
 
 
 def _build_graph(llm, caminho: str, max_passos: int):
-    modelo = llm.bind_tools([run_sql_tool, final_answer_tool])
+    # One tool call per turn, so a single message cannot overshoot max_passos.
+    modelo = llm.bind_tools([run_sql_tool, final_answer_tool], parallel_tool_calls=False)
 
     def agent(state: _State) -> dict:
         return {"messages": [modelo.invoke(state["messages"])]}
@@ -112,7 +115,7 @@ def _build_graph(llm, caminho: str, max_passos: int):
                     conteudo = to_llm_text(df)
                     passos.append(Passo(sql=sql, linhas=len(df), erro=None))
             mensagens.append(ToolMessage(content=conteudo, tool_call_id=call["id"]))
-        return {"messages": mensagens, "passos": passos}
+        return {"messages": mensagens, "passos": passos, "rodadas": 1}
 
     def depois_do_agent(state: _State) -> str:
         calls = _tool_calls(state["messages"][-1])
@@ -121,7 +124,10 @@ def _build_graph(llm, caminho: str, max_passos: int):
         return "tools"
 
     def depois_das_tools(state: _State) -> str:
-        return END if len(state["passos"]) >= max_passos else "agent"
+        # Bound agent turns too, so turns without run_sql (e.g. unknown tools) end.
+        if state["rodadas"] >= max_passos or len(state["passos"]) >= max_passos:
+            return END
+        return "agent"
 
     grafo = StateGraph(_State)
     grafo.add_node("agent", agent)
@@ -147,15 +153,20 @@ def ask(
 ) -> Resultado:
     """Answer a business question by letting the LLM query the database."""
     grafo = _build_graph(llm, caminho, max_passos)
-    estado = grafo.invoke(
-        {
-            "messages": [
-                SystemMessage(content=build_system_prompt(caminho)),
-                HumanMessage(content=pergunta),
-            ],
-            "passos": [],
-        }
-    )
+    entrada = {
+        "messages": [
+            SystemMessage(content=build_system_prompt(caminho)),
+            HumanMessage(content=pergunta),
+        ],
+        "passos": [],
+        "rodadas": 0,
+    }
+    # Safety net on top of the round counter: never loop without bound.
+    config = {"recursion_limit": 2 * max_passos + 5}
+    try:
+        estado = grafo.invoke(entrada, config=config)
+    except GraphRecursionError:
+        return _fallback([])
     passos = estado["passos"]
     ultima = estado["messages"][-1]
     calls = _tool_calls(ultima)
