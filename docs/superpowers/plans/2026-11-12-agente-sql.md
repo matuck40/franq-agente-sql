@@ -6,7 +6,7 @@
 
 **Architecture:** A LangGraph loop (`agent` node ⇄ `tools` node). The LLM sees the live schema and has two tools: `run_sql` (read-only execution, returns rows or the error text, so the LLM corrects itself) and `final_answer` (text + which query to chart + chart type). The final data is re-executed by code from the chosen SQL, never copied from LLM text. Streamlit calls `ask()` and renders the result.
 
-**Tech Stack:** Python 3.11, LangGraph + langchain-core, langchain-anthropic (default model `claude-sonnet-5-5`, swappable by env var), SQLite (`sqlite3`), pandas, Streamlit, pytest, ruff.
+**Tech Stack:** Python 3.11, LangGraph + langchain-core, langchain-openai (default model `gpt-5-mini`, swappable by env var), SQLite (`sqlite3`), pandas, Streamlit, pytest, ruff.
 
 **Spec:** the challenge PDF "Desafio Técnico 1" (Franq, received 2026-11-12, deadline 2026-11-18) plus decisions in this session. Requirements quoted below in Global Constraints.
 
@@ -121,15 +121,15 @@ def test_to_llm_text_trunca():
 **Files:**
 - Create: `src/llm.py`, `.env.example`
 - Create: `tests/fakes.py`
-- Modify: `requirements.txt` (add pinned `langgraph`, `langchain-core`, `langchain-anthropic`, `python-dotenv`, `streamlit`, `ruff`; pin to the versions pip installs)
+- Modify: `requirements.txt` (add pinned `langgraph`, `langchain-core`, `langchain-openai`, `python-dotenv`, `streamlit`, `ruff`; pin to the versions pip installs)
 - Test: `tests/test_llm.py`
 
 **Interfaces:**
-- Produces: `get_llm() -> BaseChatModel`. Loads `.env` with python-dotenv, reads `LLM_MODEL` (default `"claude-sonnet-5-5"`), returns `langchain_anthropic.ChatAnthropic(model=..., temperature=0)`; raises `RuntimeError("Defina ANTHROPIC_API_KEY no .env")` when the key is missing.
+- Produces: `get_llm() -> BaseChatModel`. Loads `.env` with python-dotenv, reads `LLM_MODEL` (default `"gpt-5-mini"`), returns `langchain_openai.ChatOpenAI(model=...)`; raises `RuntimeError("Defina OPENAI_API_KEY no .env")` when the key is missing.
 - Produces (tests only): `class FakeToolLLM(BaseChatModel)` built from a list of `AIMessage`s returned in order; `bind_tools(...)` returns self; records the messages it received in `self.recebidas: list[list[BaseMessage]]`.
-- `.env.example` contains `ANTHROPIC_API_KEY=` and `LLM_MODEL=claude-sonnet-5-5`.
+- `.env.example` contains `OPENAI_API_KEY=` and `LLM_MODEL=gpt-5-mini`.
 
-- [ ] **Step 1:** Failing tests: `get_llm()` raises `RuntimeError` when `ANTHROPIC_API_KEY` is unset (use `monkeypatch.delenv`); `FakeToolLLM([AIMessage("a"), AIMessage("b")])` returns `"a"` then `"b"` on two `invoke` calls.
+- [ ] **Step 1:** Failing tests: `get_llm()` raises `RuntimeError` when `OPENAI_API_KEY` is unset (use `monkeypatch.delenv`); `FakeToolLLM([AIMessage("a"), AIMessage("b")])` returns `"a"` then `"b"` on two `invoke` calls.
 - [ ] **Step 2:** Run, expect FAIL.
 - [ ] **Step 3:** Install deps, implement, pin versions.
 - [ ] **Step 4:** Run `pytest -v`, expect all PASS.
