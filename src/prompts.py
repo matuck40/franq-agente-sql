@@ -28,6 +28,10 @@ gera os dados finais.
 para comparações entre categorias, "tabela" para listas, "numero" para um único \
 valor, "texto" quando não houver dados para mostrar. Para "linha" e "barra", \
 informe x e y com nomes de colunas do resultado.
+- Para tendências ou comparações por categoria (ex.: reclamações por mês e por \
+canal), devolva os dados em formato longo (uma linha por x e categoria) e informe \
+serie com a coluna da categoria (ex.: serie="canal"), para desenhar uma linha ou \
+barra por categoria. Caso contrário, serie é null.
 - Responda sempre em português."""
 
 

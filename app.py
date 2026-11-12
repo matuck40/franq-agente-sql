@@ -17,14 +17,22 @@ def render_dados(res: dict) -> None:
     df = res["dados"]
     if df is None:
         return
-    escolha = viz.escolher_visualizacao(df, res["visualizacao"], res["x"], res["y"])
-    tipo, x, y = escolha["tipo"], escolha["x"], escolha["y"]
-    if tipo == "numero":
+    escolha = viz.escolher_visualizacao(
+        df, res["visualizacao"], res["x"], res["y"], res.get("serie")
+    )
+    tipo, x, y, serie = escolha["tipo"], escolha["x"], escolha["y"], escolha["serie"]
+    if tipo in ("barra", "linha"):
+        if serie:
+            # Long format (x, serie, y) -> one column per series, one line/bar each.
+            dados = df.pivot_table(index=x, columns=serie, values=y, aggfunc="sum")
+        else:
+            dados = df.set_index(x)[y]
+        if tipo == "linha":
+            st.line_chart(dados.sort_index())
+        else:
+            st.bar_chart(dados)
+    elif tipo == "numero":
         st.metric(str(df.columns[0]), str(df.iloc[0, 0]))
-    elif tipo == "barra":
-        st.bar_chart(df.set_index(x)[y])
-    elif tipo == "linha":
-        st.line_chart(df.sort_values(x).set_index(x)[y])
     elif tipo == "tabela":
         if df.empty:
             st.info("A consulta não retornou linhas.")

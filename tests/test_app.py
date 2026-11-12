@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import streamlit
 from streamlit.testing.v1 import AppTest
 
 import src.agent
@@ -69,3 +70,23 @@ def test_example_button_asks(monkeypatch):
     at.sidebar.button[0].click().run()
     assert not at.exception
     assert len(at.session_state["historico"]) == 1
+
+
+def test_multi_series_line_chart(monkeypatch):
+    longo = pd.DataFrame(
+        {
+            "mes": ["2025-01", "2025-01", "2025-02", "2025-02"],
+            "canal": ["Chat", "Telefone", "Chat", "Telefone"],
+            "n": [3, 5, 4, 2],
+        }
+    )
+    desenhados = []
+    monkeypatch.setattr(streamlit, "line_chart", lambda dados, **kw: desenhados.append(dados))
+    res = _resultado(dados=longo, visualizacao="linha", x="mes", y="n", serie="canal")
+    at = _run(monkeypatch, res)
+    assert not at.exception
+    assert len(at.dataframe) == 0  # drawn as a chart, not a table
+    # One column (line) per channel, indexed by month.
+    assert list(desenhados[0].columns) == ["Chat", "Telefone"]
+    assert list(desenhados[0].index) == ["2025-01", "2025-02"]
+    assert desenhados[0].loc["2025-01", "Telefone"] == 5

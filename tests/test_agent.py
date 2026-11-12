@@ -133,3 +133,78 @@ def test_prompt_traz_intervalo_e_regra_de_datas():
     p = build_system_prompt(DB_PATH)
     assert "2025-07-22" in p and "último ano" in p
     assert "2024-07-22" in p
+
+
+SQL_TENDENCIA = (
+    "SELECT strftime('%Y-%m', data_compra) mes, canal, COUNT(*) n "
+    "FROM compras GROUP BY mes, canal"
+)
+
+
+def test_serie_vai_do_final_answer_para_o_resultado():
+    llm = FakeToolLLM(
+        [
+            _final(
+                "c1", texto="ok", sql=SQL_TENDENCIA, visualizacao="linha",
+                x="mes", y="n", serie="canal",
+            )
+        ]
+    )
+    r = ask("Tendência de compras por canal?", llm)
+    assert r["serie"] == "canal" and r["visualizacao"] == "linha"
+    assert set(r["dados"].columns) == {"mes", "canal", "n"}
+
+
+class _GravaBindTools(FakeToolLLM):
+    def bind_tools(self, tools, **kwargs):
+        object.__setattr__(self, "bind_kwargs", kwargs)
+        return self
+
+
+def test_exige_chamada_de_ferramenta_a_cada_turno():
+    llm = _GravaBindTools([_final("c1", texto="ok", sql=None, visualizacao="texto")])
+    ask("Oi", llm)
+    assert llm.bind_kwargs == {"parallel_tool_calls": False, "tool_choice": "required"}
+
+
+@pytest.mark.parametrize("sql_ruim", [None, 42, "   "])
+def test_sql_ausente_ou_invalido_vira_erro_para_o_llm(sql_ruim):
+    llm = FakeToolLLM(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "run_sql", "args": {"sql": sql_ruim}, "id": "c1"}],
+            ),
+            _final("c2", texto="ok", sql=SQL_CANAL, visualizacao="tabela", x=None, y=None),
+        ]
+    )
+    r = ask("Compras por canal?", llm)
+    assert r["passos"][0]["erro"] == "argumento sql ausente ou inválido"
+    assert r["passos"][0]["linhas"] is None
+    assert any(
+        isinstance(m, ToolMessage) and m.content == "ERRO: argumento sql ausente ou inválido"
+        for m in llm.recebidas[1]
+    )
+    assert len(r["dados"]) == 3
+
+
+def test_run_sql_sem_argumento_sql_nao_quebra():
+    llm = FakeToolLLM(
+        [
+            AIMessage(content="", tool_calls=[{"name": "run_sql", "args": {}, "id": "c1"}]),
+            _final("c2", texto="ok", sql=None, visualizacao="texto", x=None, y=None),
+        ]
+    )
+    r = ask("Pergunta", llm)
+    assert r["passos"] == [
+        {"sql": "", "linhas": None, "erro": "argumento sql ausente ou inválido"}
+    ]
+
+
+def test_final_answer_com_sql_nao_texto_e_tratado_como_sem_sql():
+    llm = FakeToolLLM(
+        [_final("c1", texto="Resposta.", sql=123, visualizacao="barra", x="a", y="b")]
+    )
+    r = ask("Pergunta", llm)
+    assert r["texto"] == "Resposta." and r["sql"] is None and r["dados"] is None
+    assert r["visualizacao"] == "texto" and r["serie"] is None

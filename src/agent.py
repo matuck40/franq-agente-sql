@@ -21,6 +21,7 @@ from src.db import DB_PATH, SQLError, run_query, to_llm_text
 from src.prompts import build_system_prompt
 
 FALLBACK = "Não consegui concluir a análise."
+_SQL_INVALIDO = "argumento sql ausente ou inválido"
 
 Visualizacao = Literal["tabela", "barra", "linha", "numero", "texto"]
 
@@ -38,6 +39,7 @@ class Resultado(TypedDict):
     visualizacao: Visualizacao
     x: str | None
     y: str | None
+    serie: str | None
     passos: list[Passo]
 
 
@@ -56,6 +58,10 @@ class _FinalAnswerArgs(BaseModel):
     visualizacao: Visualizacao = Field(description="Como exibir os dados.")
     x: str | None = Field(description="Coluna do eixo x (linha/barra), ou null.")
     y: str | None = Field(description="Coluna do eixo y (linha/barra), ou null.")
+    serie: str | None = Field(
+        description="Coluna categórica que separa as linhas/barras (ex.: canal), "
+        "quando há uma série por categoria; ou null."
+    )
 
 
 @tool(
@@ -76,7 +82,12 @@ def run_sql_tool(sql: str) -> str:
     "Chame sempre ao terminar.",
 )
 def final_answer_tool(
-    texto: str, sql: str | None, visualizacao: str, x: str | None, y: str | None
+    texto: str,
+    sql: str | None,
+    visualizacao: str,
+    x: str | None,
+    y: str | None,
+    serie: str | None,
 ) -> str:
     # Only the schema is used: the graph ends when this tool is called.
     raise NotImplementedError
@@ -94,7 +105,11 @@ def _tool_calls(msg) -> list[dict]:
 
 def _build_graph(llm, caminho: str, max_passos: int):
     # One tool call per turn, so a single message cannot overshoot max_passos.
-    modelo = llm.bind_tools([run_sql_tool, final_answer_tool], parallel_tool_calls=False)
+    # tool_choice="required": the model must call a tool every turn instead of
+    # replying with plain text mid-investigation (which would end with no data).
+    modelo = llm.bind_tools(
+        [run_sql_tool, final_answer_tool], parallel_tool_calls=False, tool_choice="required"
+    )
 
     def agent(state: _State) -> dict:
         return {"messages": [modelo.invoke(state["messages"])]}
@@ -102,10 +117,16 @@ def _build_graph(llm, caminho: str, max_passos: int):
     def tools(state: _State) -> dict:
         mensagens, passos = [], []
         for call in _tool_calls(state["messages"][-1]):
+            sql = call["args"].get("sql")
             if call["name"] != "run_sql":
                 conteudo = f"ERRO: ferramenta desconhecida '{call['name']}'"
+            elif not isinstance(sql, str) or not sql.strip():
+                # A missing or non-string sql must not crash: tell the LLM instead.
+                conteudo = f"ERRO: {_SQL_INVALIDO}"
+                passos.append(
+                    Passo(sql="" if sql is None else str(sql), linhas=None, erro=_SQL_INVALIDO)
+                )
             else:
-                sql = call["args"].get("sql", "")
                 try:
                     df = run_query(sql, caminho)
                 except SQLError as e:
@@ -144,7 +165,14 @@ def _fallback(passos: list[Passo], erro: str | None = None) -> Resultado:
         erro = erros[-1] if erros else None
     texto = FALLBACK if erro is None else f"{FALLBACK}\n\nÚltimo erro: {erro}"
     return Resultado(
-        texto=texto, sql=None, dados=None, visualizacao="texto", x=None, y=None, passos=passos
+        texto=texto,
+        sql=None,
+        dados=None,
+        visualizacao="texto",
+        x=None,
+        y=None,
+        serie=None,
+        passos=passos,
     )
 
 
@@ -178,15 +206,15 @@ def ask(
             return _fallback(passos)
         return Resultado(
             texto=ultima.text, sql=None, dados=None, visualizacao="texto",
-            x=None, y=None, passos=passos,
+            x=None, y=None, serie=None, passos=passos,
         )
 
     args = final["args"]
     sql = args.get("sql")
-    if not sql:
+    if not isinstance(sql, str) or not sql.strip():  # absent, null or not a string
         return Resultado(
             texto=args.get("texto", ""), sql=None, dados=None, visualizacao="texto",
-            x=None, y=None, passos=passos,
+            x=None, y=None, serie=None, passos=passos,
         )
     try:
         dados = run_query(sql, caminho)
@@ -199,5 +227,6 @@ def ask(
         visualizacao=args.get("visualizacao") or "tabela",
         x=args.get("x"),
         y=args.get("y"),
+        serie=args.get("serie"),
         passos=passos,
     )
