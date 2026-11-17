@@ -208,3 +208,15 @@ def test_final_answer_com_sql_nao_texto_e_tratado_como_sem_sql():
     r = ask("Pergunta", llm)
     assert r["texto"] == "Resposta." and r["sql"] is None and r["dados"] is None
     assert r["visualizacao"] == "texto" and r["serie"] is None
+
+
+def test_limite_de_recursao_mantem_os_passos_feitos(monkeypatch):
+    # The turn counter normally ends first; shrink the safety net to reach it.
+    import src.agent
+
+    monkeypatch.setattr(src.agent, "_FOLGA_RECURSAO", -2)
+    llm = FakeToolLLM([_run_sql("SELECT x FROM compras", f"c{i}") for i in range(10)])
+    r = ask("Pergunta", llm, max_passos=3)
+    assert "Não consegui" in r["texto"]
+    assert len(r["passos"]) >= 1  # steps already run are shown, not dropped
+    assert "no such column" in r["texto"]
