@@ -90,3 +90,39 @@ def test_multi_series_line_chart(monkeypatch):
     assert list(desenhados[0].columns) == ["Chat", "Telefone"]
     assert list(desenhados[0].index) == ["2025-01", "2025-02"]
     assert desenhados[0].loc["2025-01", "Telefone"] == 5
+
+
+def _capturar_barras(monkeypatch):
+    desenhados = []
+    monkeypatch.setattr(
+        streamlit, "bar_chart", lambda dados, **kw: desenhados.append((dados, kw))
+    )
+    return desenhados
+
+
+def test_bar_chart_keeps_sql_row_order(monkeypatch):
+    # A ranking from ORDER BY n DESC: not alphabetical.
+    ranking = pd.DataFrame({"canal": ["Telefone", "Chat", "E-mail"], "n": [19, 18, 14]})
+    desenhados = _capturar_barras(monkeypatch)
+    at = _run(monkeypatch, _resultado(dados=ranking, x="canal", y="n"))
+    assert not at.exception
+    dados, kw = desenhados[0]
+    assert list(dados.index) == ["Telefone", "Chat", "E-mail"]
+    assert kw.get("sort") is False
+
+
+def test_multi_series_bar_chart_keeps_sql_row_order(monkeypatch):
+    longo = pd.DataFrame(
+        {
+            "estado": ["SP", "SP", "MG", "MG", "AC", "AC"],
+            "canal": ["App", "Site", "App", "Site", "App", "Site"],
+            "n": [6, 2, 3, 1, 1, 1],
+        }
+    )
+    desenhados = _capturar_barras(monkeypatch)
+    res = _resultado(dados=longo, x="estado", y="n", serie="canal")
+    at = _run(monkeypatch, res)
+    assert not at.exception
+    dados, kw = desenhados[0]
+    assert list(dados.index) == ["SP", "MG", "AC"]
+    assert kw.get("sort") is False
