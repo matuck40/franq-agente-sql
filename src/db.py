@@ -87,7 +87,7 @@ def _verificar_instrucao_unica(sql: str) -> None:
             return
 
 
-def _resumo_para_trace(df: pd.DataFrame) -> dict:
+def resumo_para_trace(df: pd.DataFrame) -> dict:
     """What LangSmith records as a query's output: size and the first rows, not the
     whole result (it can have up to 10,000 rows)."""
     return {
@@ -100,7 +100,7 @@ def _resumo_para_trace(df: pd.DataFrame) -> dict:
 
 # Shows each query as its own step in LangSmith when LANGSMITH_TRACING=true; when
 # tracing is off this decorator does nothing.
-@traceable(run_type="tool", name="run_query", process_outputs=_resumo_para_trace)
+@traceable(run_type="tool", name="run_query", process_outputs=resumo_para_trace)
 def run_query(
     sql: str, caminho: str, timeout_s: float = 10.0, max_linhas: int = 10_000
 ) -> pd.DataFrame:

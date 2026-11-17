@@ -167,10 +167,10 @@ def test_run_query_aparece_como_passo_no_langsmith():
 
 
 def test_resumo_para_o_trace_nao_envia_a_tabela_inteira():
-    from src.db import _resumo_para_trace
+    from src.db import resumo_para_trace
 
     df = run_query("SELECT * FROM compras", DB_PATH)  # 946 rows
-    resumo = _resumo_para_trace(df)
+    resumo = resumo_para_trace(df)
     assert resumo["linhas"] == 946
     assert resumo["colunas"] == list(df.columns)
     assert len(resumo["amostra"]) == 5  # first rows only, not the whole table

@@ -15,9 +15,10 @@ from langchain_core.tools import tool
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
+from langsmith import traceable
 from pydantic import BaseModel, Field
 
-from src.db import DB_PATH, SQLError, run_query, to_llm_text
+from src.db import DB_PATH, SQLError, resumo_para_trace, run_query, to_llm_text
 from src.prompts import build_system_prompt
 
 FALLBACK = "Não consegui concluir a análise."
@@ -181,6 +182,22 @@ def _fallback(passos: list[Passo], erro: str | None = None) -> Resultado:
     )
 
 
+def _entrada_para_trace(entrada: dict) -> dict:
+    """Trace input: the question and limits, not the model object."""
+    return {k: v for k, v in entrada.items() if k != "llm"}
+
+
+def _saida_para_trace(resultado: Resultado) -> dict:
+    """Trace output: the result with a summary of the data, not the whole table."""
+    dados = resultado["dados"]
+    return {**resultado, "dados": None if dados is None else resumo_para_trace(dados)}
+
+
+# Root of the LangSmith trace (when tracing is on): the graph run and the re-run of the
+# final SQL appear in one tree.
+@traceable(
+    name="ask", process_inputs=_entrada_para_trace, process_outputs=_saida_para_trace
+)
 def ask(
     pergunta: str, llm: BaseChatModel, caminho: str = DB_PATH, max_passos: int = 8
 ) -> Resultado:
