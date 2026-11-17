@@ -8,6 +8,10 @@ under "Como cheguei aqui". Built with LangGraph, OpenAI (`gpt-5-mini`) and Strea
 
 ![The agent answering "Qual a tendência de reclamações por canal no último ano?"](docs/img/hero.png)
 
+*Question 5 in the app (current version). The answer's recommendations, between the
+summary and the chart, are cropped out of this image; the full answer is in
+[the screenshots below](#screenshots).*
+
 **Results.** On the 5 example questions from the challenge, run 3 times each, all 15
 runs returned the same data as a hand-written reference query (eval round 4). The answer
 text is less reliable: 4 of the 15 texts still mention column names or SQL. Details and
@@ -150,6 +154,25 @@ and blocking personal columns. The full history, with each finding and fix, is i
 Limits of these results: 3 runs per question is a small sample; the prompt rules were
 tuned on these same 5 questions, so they do not show how the agent does on new ones;
 and 4 of 15 answer texts in round 4 still used column names or SQL.
+
+### Screenshots
+
+The 5 questions in the app, current version. Q1 lists the three states tied at 5th
+place; bars keep the ranking order; Q5 flags the partial first and last months. Some
+texts still show column names (Q2 `interagiu = 1`, Q4 `resolvido = 0`, Q5 `serie =
+canal`), the open issue above.
+
+| Q1 | Q1 (table) | Q2 |
+| --- | --- | --- |
+| ![Q1](docs/img/q1.png) | ![Q1 table](docs/img/q1-tabela.png) | ![Q2](docs/img/q2.png) |
+
+| Q3 | Q3 (chart) | Q4 |
+| --- | --- | --- |
+| ![Q3](docs/img/q3.png) | ![Q3 chart](docs/img/q3-grafico.png) | ![Q4](docs/img/q4.png) |
+
+| Q4 (chart) | Q5 (text) | Q5 (chart) |
+| --- | --- | --- |
+| ![Q4 chart](docs/img/q4-grafico.png) | ![Q5 text](docs/img/q5-texto.png) | ![Q5 chart](docs/img/q5-grafico.png) |
 
 ## Known risks and what production would need
 
