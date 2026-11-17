@@ -102,8 +102,9 @@ too.
 
 Example: Q5 ("Qual a tendência de reclamações por canal no último ano?"),
 [public trace](https://smith.langchain.com/public/f3d384b6-8642-49fb-9e6a-7d05366ccd74/r/01a1e83c-6dac-7468-a241-376c86275dc5).
-`ask` is the root: three agent turns (two `run_query` calls, then `final_answer`) and,
-last, the re-run of the final SQL. Of the 30 s, the three OpenAI calls took about 30 s
+`ask` is the root: three agent turns (the first two call `run_query`; the third calls
+`final_answer`, which ends the graph without a `tools` step) and, last, the re-run of
+the final SQL. Of the 30.3 s, the three OpenAI calls took 30.2 s
 (8.0, 3.4 and 18.8 s) and the three queries about 0.02 s; the last turn, which writes
 the long answer, was the slowest. So latency is cut by fewer turns or shorter answers,
 not by faster SQL.

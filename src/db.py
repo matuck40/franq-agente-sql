@@ -87,9 +87,11 @@ def _verificar_instrucao_unica(sql: str) -> None:
             return
 
 
-def resumo_para_trace(df: pd.DataFrame) -> dict:
+def resumo_para_trace(df: pd.DataFrame | None) -> dict:
     """What LangSmith records as a query's output: size and the first rows, not the
-    whole result (it can have up to 10,000 rows)."""
+    whole result (it can have up to 10,000 rows). None (a failed query) gives {}."""
+    if df is None:
+        return {}
     return {
         "linhas": len(df),
         "colunas": list(df.columns),

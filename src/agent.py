@@ -187,8 +187,11 @@ def _entrada_para_trace(entrada: dict) -> dict:
     return {k: v for k, v in entrada.items() if k != "llm"}
 
 
-def _saida_para_trace(resultado: Resultado) -> dict:
-    """Trace output: the result with a summary of the data, not the whole table."""
+def _saida_para_trace(resultado: Resultado | None) -> dict:
+    """Trace output: the result with a summary of the data, not the whole table.
+    None (ask raised) gives {}."""
+    if resultado is None:
+        return {}
     dados = resultado["dados"]
     return {**resultado, "dados": None if dados is None else resumo_para_trace(dados)}
 

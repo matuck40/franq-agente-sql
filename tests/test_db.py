@@ -175,3 +175,16 @@ def test_resumo_para_o_trace_nao_envia_a_tabela_inteira():
     assert resumo["colunas"] == list(df.columns)
     assert len(resumo["amostra"]) == 5  # first rows only, not the whole table
     assert resumo["truncado"] is False
+
+
+def test_resumo_aceita_none_quando_a_consulta_falha():
+    # On a failed query the tracing library calls the summarizer with None.
+    from src.db import resumo_para_trace
+
+    assert resumo_para_trace(None) == {}
+
+
+def test_consulta_com_erro_nao_gera_aviso_de_trace(caplog):
+    with pytest.raises(SQLError):
+        run_query("SELECT coluna_inexistente FROM clientes", DB_PATH)
+    assert "process_outputs failed" not in caplog.text

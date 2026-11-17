@@ -227,3 +227,9 @@ def test_ask_e_a_raiz_do_trace_no_langsmith():
     from langsmith.run_helpers import is_traceable_function
 
     assert is_traceable_function(ask)
+
+
+def test_saida_do_trace_aceita_none():
+    from src.agent import _saida_para_trace
+
+    assert _saida_para_trace(None) == {}
