@@ -120,3 +120,25 @@ def test_outras_colunas_de_clientes_continuam_liberadas():
     )
     assert len(df) > 0
     assert run_query("SELECT COUNT(*) AS n FROM clientes", DB_PATH)["n"][0] == 100
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT randomblob(100000000) AS b",  # one 100 MB cell ran in 0.6 s before
+        "SELECT zeroblob(2000000) AS b",
+        "SELECT printf('%.*c', 5000000, 'x') AS t",  # large text from another function
+    ],
+)
+def test_valor_grande_demais_e_recusado(sql):
+    with pytest.raises(SQLError, match="grande demais"):
+        run_query(sql, DB_PATH)
+
+
+def test_texto_para_o_llm_tem_limite_de_caracteres():
+    import pandas as pd
+
+    df = pd.DataFrame({"t": ["x" * 1000] * 100})  # ~100k characters in 100 rows
+    texto = to_llm_text(df, max_caracteres=5000)
+    assert len(texto) < 5300
+    assert "texto cortado" in texto

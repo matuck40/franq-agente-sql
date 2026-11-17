@@ -19,6 +19,17 @@ _PERMITIDOS = {
 # How many SQLite VM instructions run between two deadline checks.
 _PASSOS_ENTRE_CHECAGENS = 1000
 
+# Largest string or blob a query may build (SQLite's default is 1 GB). The deadline
+# and the row cap do not bound the size of one value: randomblob(100000000) returned a
+# 100 MB cell in 0.6 s. This limit applies to every function (randomblob, zeroblob,
+# printf, replace...), not only to a list of known ones.
+MAX_BYTES_POR_VALOR = 1_000_000
+
+_MSG_GRANDE = (
+    "Valor grande demais: um texto ou blob passou de {limite} bytes. Consulte só os "
+    "dados necessários, sem gerar valores grandes."
+)
+
 
 class SQLError(Exception):
     """SQL error; its message is shown to the LLM so it can fix the query."""
@@ -83,6 +94,7 @@ def run_query(
     try:
         with closing(sqlite3.connect(uri, uri=True)) as conn:
             conn.set_authorizer(_autorizador)
+            conn.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, MAX_BYTES_POR_VALOR)
             conn.set_progress_handler(_checar_prazo, _PASSOS_ENTRE_CHECAGENS)
             with closing(conn.execute(sql)) as cur:
                 linhas = cur.fetchmany(max_linhas + 1)
@@ -93,6 +105,8 @@ def run_query(
                 f"A consulta demorou mais de {timeout_s:g} s e foi interrompida; "
                 "simplifique a consulta ou adicione filtros."
             ) from e
+        if "too big" in str(e):  # SQLite: "string or blob too big"
+            raise SQLError(_MSG_GRANDE.format(limite=MAX_BYTES_POR_VALOR)) from e
         if "prohibited" in str(e):  # SQLite: "access to clientes.nome is prohibited"
             raise SQLError(_MSG_PESSOAIS.format(detalhe=e)) from e
         raise SQLError(str(e)) from e
@@ -103,10 +117,16 @@ def run_query(
     return df
 
 
-def to_llm_text(df: pd.DataFrame, max_linhas: int = 200) -> str:
-    """CSV of the first max_linhas rows, with a note when rows were left out."""
+def to_llm_text(df: pd.DataFrame, max_linhas: int = 200, max_caracteres: int = 20_000) -> str:
+    """CSV of the first max_linhas rows, cut at max_caracteres, with a note when rows
+    or text were left out."""
     total = len(df)
     texto = df.head(max_linhas).to_csv(index=False).rstrip("\n")
+    if len(texto) > max_caracteres:
+        texto = texto[:max_caracteres] + (
+            f"\n(texto cortado em {max_caracteres} caracteres: o resultado é largo demais; "
+            "selecione menos colunas ou linhas)"
+        )
     if total > max_linhas:
         texto += f"\n(... {total} linhas no total, mostrando {max_linhas})"
     if df.attrs.get("truncado"):
