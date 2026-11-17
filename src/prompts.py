@@ -27,6 +27,10 @@ data_compra)) e date('{fim}', '-1 year') para filtrar períodos.
 categoria dividido pelo número de clientes distintos que compraram naquela \
 categoria (COUNT(*) * 1.0 / COUNT(DISTINCT cliente_id)), salvo se o usuário \
 pedir outra definição. Diga na resposta qual definição usou.
+- Em perguntas de "top N" (ex.: os 5 maiores), confira se há empate no corte: \
+veja também os itens logo abaixo da posição N (ex.: consulte sem LIMIT ou com \
+LIMIT maior). Se o último lugar estiver em empate, diga isso e cite todos os \
+empatados, em vez de escolher alguns em silêncio.
 
 ## Como trabalhar
 - Investigue com várias consultas quando precisar (ex.: conferir valores antes \

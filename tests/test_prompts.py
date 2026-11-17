@@ -35,3 +35,8 @@ def test_meses_parciais(inicio, fim, esperado):
 def test_avisa_meses_parciais(prompt):
     assert "2024-07, 2025-07" in prompt
     assert "incompletos" in prompt
+
+
+def test_avisa_empate_no_corte_do_top_n(prompt):
+    assert "empate" in prompt
+    assert "cite todos os empatados" in prompt
