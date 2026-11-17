@@ -158,3 +158,20 @@ def test_erro_de_tabela_com_nome_too_big_nao_vira_valor_grande():
     with pytest.raises(SQLError, match="no such table") as erro:
         run_query('SELECT * FROM "too big"', DB_PATH)
     assert "grande demais" not in str(erro.value)
+
+
+def test_run_query_aparece_como_passo_no_langsmith():
+    from langsmith.run_helpers import is_traceable_function
+
+    assert is_traceable_function(run_query)
+
+
+def test_resumo_para_o_trace_nao_envia_a_tabela_inteira():
+    from src.db import _resumo_para_trace
+
+    df = run_query("SELECT * FROM compras", DB_PATH)  # 946 rows
+    resumo = _resumo_para_trace(df)
+    assert resumo["linhas"] == 946
+    assert resumo["colunas"] == list(df.columns)
+    assert len(resumo["amostra"]) == 5  # first rows only, not the whole table
+    assert resumo["truncado"] is False

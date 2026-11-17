@@ -50,11 +50,17 @@ Tests that need the database skip if it is missing.
 
 ## Agent flow and architecture
 
+```mermaid
+graph TD;
+    __start__([start]) --> agent;
+    agent -.-> tools;
+    tools -.-> agent;
+    agent -.-> __end__([end]);
+    tools -.-> __end__;
 ```
-START --> agent <---> tools
-            |
-            +--> END
-```
+
+The diagram comes from the graph itself (`get_graph().draw_mermaid()`); dashed edges
+are conditional.
 
 - `agent`: the LLM, with two tools bound, reads the conversation and calls either
   `run_sql` (run one query, get rows or the error) or `final_answer` (answer text, final
@@ -81,6 +87,18 @@ START --> agent <---> tools
   bounded in time and size.
 - **LangGraph** makes the loop explicit: state (the steps), turn limits and the stop
   condition are code, and the whole graph is tested with a fake LLM.
+
+### Observing runs with LangSmith
+
+Optional. With `LANGSMITH_TRACING=true`, `LANGSMITH_API_KEY` and `LANGSMITH_PROJECT`
+in `.env` (see `.env.example`), each question becomes one trace in
+[LangSmith](https://smith.langchain.com): every LLM call with its prompt, answer, tokens
+and latency, and every SQL execution as its own `run_query` step. For each query the
+trace keeps the SQL, the row count, the column names and the first 5 rows, not the
+whole result. Tracing is off by default, and tests never send traces
+(`tests/conftest.py`). Traces contain prompts and query results, so the LGPD note
+under [Known risks](#known-risks-and-what-production-would-need) applies to LangSmith
+too.
 
 Code layout:
 
@@ -180,7 +198,7 @@ canal`), the open issue above.
 This is a prototype for the challenge. Before real use it would need:
 
 - **Data sent to a third party (LGPD).** Query results (up to 200 rows per query) go to
-  OpenAI. Names and e-mails are blocked, but customer ids, states and purchase history
+  OpenAI, and to LangSmith if tracing is on. Names and e-mails are blocked, but customer ids, states and purchase history
   still leave the company. Production needs a legal basis and a data processing
   agreement, or a model hosted in-house.
 - **No authentication or rate limit.** Anyone who can open the app can ask unlimited
@@ -206,4 +224,5 @@ This is a prototype for the challenge. Before real use it would need:
   events for the steps).
 - **Cache the schema.** It is read from the database on every question; compute it once
   per process.
-- **Cost and latency tracking.** Record tokens, turns and time per question.
+- **Cost and latency dashboards.** LangSmith already shows tokens and latency per
+  trace; track them per question over time and alert on regressions.

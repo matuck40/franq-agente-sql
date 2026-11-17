@@ -4,6 +4,7 @@ import time
 from contextlib import closing
 
 import pandas as pd
+from langsmith import traceable
 
 from src.schema import PERSONAL_COLUMNS
 
@@ -86,6 +87,20 @@ def _verificar_instrucao_unica(sql: str) -> None:
             return
 
 
+def _resumo_para_trace(df: pd.DataFrame) -> dict:
+    """What LangSmith records as a query's output: size and the first rows, not the
+    whole result (it can have up to 10,000 rows)."""
+    return {
+        "linhas": len(df),
+        "colunas": list(df.columns),
+        "amostra": df.head(5).to_dict(orient="records"),
+        "truncado": bool(df.attrs.get("truncado", False)),
+    }
+
+
+# Shows each query as its own step in LangSmith when LANGSMITH_TRACING=true; when
+# tracing is off this decorator does nothing.
+@traceable(run_type="tool", name="run_query", process_outputs=_resumo_para_trace)
 def run_query(
     sql: str, caminho: str, timeout_s: float = 10.0, max_linhas: int = 10_000
 ) -> pd.DataFrame:
