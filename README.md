@@ -204,21 +204,24 @@ Fixes made after round 1 (each change in `src/` and `app.py` has a test):
   states above the tie are required and any of the tied states can fill 5th place. A
   run that raises an error counts as not matching, and the other runs go on.
 
-### Eval rounds 2 and 3 (gpt-5-mini, 2026-11-17)
+### Eval rounds 2 to 4 (gpt-5-mini, 2026-11-17)
 
 Scripted runs with `python scripts/run_examples.py --repeat` (each question 3 times),
 checked automatically against the reference data. Round 2 used the fixes above; round 3
-added two more prompt fixes based on round 2.
+added two more prompt fixes based on round 2; round 4 added the two review fixes listed
+below.
 
-| # | Question (short) | Round 1 (1 run, checked by hand) | Round 2 | Round 3 |
-| --- | --- | --- | --- | --- |
-| 1 | Top 5 states, App purchases in May | Match (tie hidden) | 1/3 | **3/3** |
-| 2 | WhatsApp campaign interactions in 2024 | Match | 3/3 | **3/3** |
-| 3 | Purchases on average per customer, by category | Different | 3/3 | **2/3** |
-| 4 | Unresolved complaints per channel | Match | 2/3 | **3/3** |
-| 5 | Complaint trend per channel, last year | Match | 3/3 | **3/3** |
+| # | Question (short) | Round 1 (1 run, checked by hand) | Round 2 | Round 3 | Round 4 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Top 5 states, App purchases in May | Match (tie hidden) | 1/3 | 3/3 | **3/3** |
+| 2 | WhatsApp campaign interactions in 2024 | Match | 3/3 | 3/3 | **3/3** |
+| 3 | Purchases on average per customer, by category | Different | 3/3 | 2/3 | **3/3** |
+| 4 | Unresolved complaints per channel | Match | 2/3 | 3/3 | **3/3** |
+| 5 | Complaint trend per channel, last year | Match | 3/3 | 3/3 | **3/3** |
+| | **Answer texts with column names or SQL** | | 3/15 | 3/15 | 4/15 |
 
-Full outputs: [round 2](docs/examples-round-2.md), [round 3](docs/examples-round-3.md).
+Full outputs: [round 2](docs/examples-round-2.md), [round 3](docs/examples-round-3.md),
+[round 4](docs/examples-round-4.md).
 
 Round 2 findings and the fixes made for round 3:
 
@@ -243,10 +246,20 @@ Round 3 notes:
   `tipo_contato = 'Reclamação'`, `tipo = 'Reclamação'`). Two of the round 3 cases echo
   the complaint rule, which was written as SQL in the prompt.
 
-Changes after round 3, from code review, **not yet measured by an eval run**: the
-complaint rule is now written in words, and the top-N template uses `RANK()` instead of
-an `OFFSET` cut-off (the `OFFSET` version returned no rows when a list had fewer than N
-items, for example a top 5 of the 3 support channels).
+Changes for round 4, from code review: the complaint rule is written in words, and the
+top-N template uses `RANK()` instead of an `OFFSET` cut-off (the `OFFSET` version
+returned no rows when a list had fewer than N items, for example a top 5 of the 3
+support channels).
+
+Round 4 notes:
+
+- **Data: 15 of 15 runs matched the reference.** Two caveats: 3 runs per question is a
+  small sample, and these are the same 5 questions the prompt rules were tuned on, so
+  this does not show how the agent does on new questions.
+- **Business language is still not solved: 4 of 15 texts.** The answers no longer echo
+  the complaint rule, but they still write `interagiu = 1` (Q2, twice) or
+  `resolvido = 0` (Q4), and one Q5 answer pasted its SQL. A prompt rule alone does not
+  hold this; a check in code on the answer text would.
 
 ### How to rerun
 
@@ -288,6 +301,10 @@ This is a prototype for the challenge. Before real use it would need:
 - **Stream the steps in the UI.** Show each SQL query as the agent runs it, instead of
   a spinner followed by an expander.
 - **Few-shot examples.** Add a few question/SQL pairs to the prompt for tricky cases.
+- **Check the answer text in code.** Detect column names or SQL in the answer text and
+  ask the model to rewrite it, since the prompt rule alone still lets some through.
+- **New questions in the eval.** The prompt rules were tuned on the 5 challenge
+  questions; a held-out set of questions would measure how well they generalize.
 - **Cost and latency tracking.** Record tokens, number of turns and time per question.
 - **Ask instead of assuming.** For ambiguous questions (for example two reasonable
   definitions of an average), ask the user a clarifying question.
