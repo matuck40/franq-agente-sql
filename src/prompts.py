@@ -18,6 +18,12 @@ data_compra)) e date('{fim}', '-1 year') para filtrar períodos.
 - Colunas booleanas valem 0 ou 1.
 - Apenas consultas SELECT, uma instrução por vez.
 
+## Definições de negócio
+- "Média por cliente" de compras em uma categoria = número de compras da \
+categoria dividido pelo número de clientes distintos que compraram naquela \
+categoria (COUNT(*) * 1.0 / COUNT(DISTINCT cliente_id)), salvo se o usuário \
+pedir outra definição. Diga na resposta qual definição usou.
+
 ## Como trabalhar
 - Investigue com várias consultas quando precisar (ex.: conferir valores antes \
 de filtrar).
