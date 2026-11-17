@@ -83,3 +83,40 @@ def test_resultado_completo_nao_e_truncado():
     df = run_query("SELECT * FROM compras", DB_PATH)
     assert len(df) == 946 and df.attrs["truncado"] is False
     assert "resultado truncado" not in to_llm_text(df)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT nome FROM clientes",
+        "SELECT email FROM clientes WHERE id = 1",
+        "SELECT NOME FROM CLIENTES",
+        "SELECT c.email FROM clientes c",
+        "WITH x AS (SELECT nome FROM clientes) SELECT * FROM x",
+        "SELECT estado FROM clientes WHERE email LIKE '%@%'",
+        "SELECT COUNT(DISTINCT nome) AS n FROM clientes",
+        (
+            "SELECT id FROM compras WHERE cliente_id IN "
+            "(SELECT id FROM clientes WHERE nome LIKE 'A%')"
+        ),
+    ],
+)
+def test_colunas_pessoais_sao_bloqueadas(sql):
+    with pytest.raises(SQLError, match="dados pessoais"):
+        run_query(sql, DB_PATH)
+
+
+def test_select_estrela_em_clientes_explica_o_bloqueio():
+    with pytest.raises(SQLError, match="liste só as colunas") as erro:
+        run_query("SELECT * FROM clientes", DB_PATH)
+    assert "clientes.nome" in str(erro.value) or "clientes.email" in str(erro.value)
+
+
+def test_outras_colunas_de_clientes_continuam_liberadas():
+    df = run_query(
+        "SELECT c.estado, COUNT(DISTINCT p.cliente_id) AS n "
+        "FROM compras p JOIN clientes c ON c.id = p.cliente_id GROUP BY c.estado",
+        DB_PATH,
+    )
+    assert len(df) > 0
+    assert run_query("SELECT COUNT(*) AS n FROM clientes", DB_PATH)["n"][0] == 100

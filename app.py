@@ -24,13 +24,17 @@ def render_dados(res: dict) -> None:
     if tipo in ("barra", "linha"):
         if serie:
             # Long format (x, serie, y) -> one column per series, one line/bar each.
-            dados = df.pivot_table(index=x, columns=serie, values=y, aggfunc="sum")
+            # sort=False keeps x in the order the SQL returned it.
+            dados = df.pivot_table(
+                index=x, columns=serie, values=y, aggfunc="sum", sort=False
+            )
         else:
             dados = df.set_index(x)[y]
         if tipo == "linha":
             st.line_chart(dados.sort_index())
         else:
-            st.bar_chart(dados)
+            # Bars keep the SQL row order (e.g. a ranking), not alphabetical order.
+            st.bar_chart(dados, sort=False)
     elif tipo == "numero":
         st.metric(str(df.columns[0]), str(df.iloc[0, 0]))
     elif tipo == "tabela":
