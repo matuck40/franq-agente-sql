@@ -5,6 +5,8 @@ from contextlib import closing
 
 import pandas as pd
 
+from src.schema import PERSONAL_COLUMNS
+
 DB_PATH = "data/anexo_desafio_1.db"
 
 _PERMITIDOS = {
@@ -22,9 +24,31 @@ class SQLError(Exception):
     """SQL error; its message is shown to the LLM so it can fix the query."""
 
 
-def _autorizador(acao: int, *_: object) -> int:
-    """Allow only reads; every other action (writes, ATTACH, PRAGMA...) is denied."""
-    return sqlite3.SQLITE_OK if acao in _PERMITIDOS else sqlite3.SQLITE_DENY
+_PESSOAIS = {(t.lower(), c.lower()) for t, c in PERSONAL_COLUMNS}
+
+_MSG_PESSOAIS = (
+    "Acesso negado a dados pessoais ({detalhe}): as colunas clientes.nome e "
+    "clientes.email não podem ser lidas. Se usou SELECT *, liste só as colunas "
+    "de que precisa."
+)
+
+
+def _autorizador(acao: int, tabela: object, coluna: object, *_: object) -> int:
+    """Allow only reads; every other action (writes, ATTACH, PRAGMA...) is denied.
+
+    Reading a personal column (clientes.nome, clientes.email) is denied too, so no
+    query can return those values, whatever the prompt or the LLM does.
+    """
+    if acao not in _PERMITIDOS:
+        return sqlite3.SQLITE_DENY
+    if (
+        acao == sqlite3.SQLITE_READ
+        and isinstance(tabela, str)
+        and isinstance(coluna, str)
+        and (tabela.lower(), coluna.lower()) in _PESSOAIS
+    ):
+        return sqlite3.SQLITE_DENY
+    return sqlite3.SQLITE_OK
 
 
 def _verificar_instrucao_unica(sql: str) -> None:
@@ -69,6 +93,8 @@ def run_query(
                 f"A consulta demorou mais de {timeout_s:g} s e foi interrompida; "
                 "simplifique a consulta ou adicione filtros."
             ) from e
+        if "prohibited" in str(e):  # SQLite: "access to clientes.nome is prohibited"
+            raise SQLError(_MSG_PESSOAIS.format(detalhe=e)) from e
         raise SQLError(str(e)) from e
 
     truncado = len(linhas) > max_linhas
