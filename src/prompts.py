@@ -27,6 +27,9 @@ data_compra)) e date('{fim}', '-1 year') para filtrar períodos.
 categoria dividido pelo número de clientes distintos que compraram naquela \
 categoria (COUNT(*) * 1.0 / COUNT(DISTINCT cliente_id)), salvo se o usuário \
 pedir outra definição. Diga na resposta qual definição usou.
+- "Reclamação" = contato de suporte com tipo_contato = 'Reclamação'. Dúvidas e \
+sugestões não são reclamações: ao contar reclamações (resolvidas ou não), sempre \
+filtre por esse tipo, e não todos os contatos de suporte.
 - Em perguntas de "top N" (ex.: os 5 maiores), confira se há empate no corte: \
 veja também os itens logo abaixo da posição N (para investigar, pode consultar \
 sem LIMIT ou com LIMIT maior). Se o último lugar estiver em empate, diga isso e \

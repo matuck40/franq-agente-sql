@@ -60,3 +60,8 @@ def test_descricao_do_sql_final_pede_so_os_dados_da_resposta():
     descricao = props["sql"]["description"]
     assert "exatamente" in descricao
     assert "exploratória" in descricao
+
+
+def test_define_reclamacao_como_tipo_de_contato(prompt):
+    assert "tipo_contato = 'Reclamação'" in prompt
+    assert "não todos os contatos de suporte" in prompt
