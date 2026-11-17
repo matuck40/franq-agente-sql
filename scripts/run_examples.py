@@ -35,9 +35,10 @@ WITH por_estado AS (
   FROM compras p JOIN clientes c ON c.id = p.cliente_id
   WHERE p.canal = 'App' AND strftime('%m', p.data_compra) = '05'
   GROUP BY c.estado
-)
-SELECT estado, clientes FROM por_estado
-WHERE clientes >= (SELECT clientes FROM por_estado ORDER BY clientes DESC LIMIT 1 OFFSET 4)
+),
+posicoes AS (SELECT estado, clientes, RANK() OVER (ORDER BY clientes DESC) AS posicao
+             FROM por_estado)
+SELECT estado, clientes FROM posicoes WHERE posicao <= 5
 ORDER BY clientes DESC, estado""",
         "check": ["estado", "clientes"],
         "minimo": 5,
