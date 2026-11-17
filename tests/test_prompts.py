@@ -40,3 +40,9 @@ def test_avisa_meses_parciais(prompt):
 def test_avisa_empate_no_corte_do_top_n(prompt):
     assert "empate" in prompt
     assert "cite todos os empatados" in prompt
+
+
+def test_pede_linguagem_de_negocio_sem_nomes_de_coluna(prompt):
+    assert "linguagem de negócio" in prompt
+    assert "sem nomes de colunas" in prompt
+    assert "Como cheguei aqui" in prompt

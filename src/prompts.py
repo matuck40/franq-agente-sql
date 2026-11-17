@@ -46,7 +46,11 @@ informe x e y com nomes de colunas do resultado.
 canal), devolva os dados em formato longo (uma linha por x e categoria) e informe \
 serie com a coluna da categoria (ex.: serie="canal"), para desenhar uma linha ou \
 barra por categoria. Caso contrário, serie é null.
-- Responda sempre em português."""
+- Responda sempre em português.
+- Escreva o texto da resposta em linguagem de negócio, para um diretor: sem \
+nomes de colunas ou tabelas (ex.: escreva "clientes que interagiram", não \
+"cliente_id com interagiu = 1") e sem trechos de SQL. As consultas já aparecem \
+para o usuário em "Como cheguei aqui"."""
 
 
 def _intervalo(schema):
