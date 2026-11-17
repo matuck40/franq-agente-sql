@@ -87,8 +87,13 @@ Code layout:
 - **Bounded queries.** Each query is interrupted after 10 s (an SQLite progress
   handler checks a deadline) and at most 10,000 rows are fetched. A timeout comes back
   to the LLM as an error asking for a simpler query; when the row cap is hit, the text
-  sent to the LLM says the result was truncated. This applies both to the agent's
-  queries and to the re-execution of the final SQL.
+  sent to the LLM says the result was truncated. Size is bounded too: any single string
+  or blob is limited to 1 MB (`SQLITE_LIMIT_LENGTH`; SQLite's default is 1 GB), rows are
+  read one at a time and the query stops once the result passes 20 MB in total, and the
+  CSV sent to the LLM is cut at 20,000 characters. A query asking for 10,000 rows of two
+  ~1 MB values (about 20 GB) stopped with an error in 0.002 s, using 23 MB of memory.
+  These limits apply both to the agent's queries and to the re-execution of the final
+  SQL.
 - **Table and chart data come from code; the answer text comes from the LLM.** The
   agent returns the final SQL; the code re-executes it and draws the table or chart from
   that result, so the data on screen is never copied from LLM text. The answer text
@@ -204,21 +209,24 @@ Fixes made after round 1 (each change in `src/` and `app.py` has a test):
   states above the tie are required and any of the tied states can fill 5th place. A
   run that raises an error counts as not matching, and the other runs go on.
 
-### Eval rounds 2 and 3 (gpt-5-mini, 2026-11-17)
+### Eval rounds 2 to 4 (gpt-5-mini, 2026-11-17)
 
 Scripted runs with `python scripts/run_examples.py --repeat` (each question 3 times),
 checked automatically against the reference data. Round 2 used the fixes above; round 3
-added two more prompt fixes based on round 2.
+added two more prompt fixes based on round 2; round 4 added the two review fixes listed
+below.
 
-| # | Question (short) | Round 1 (1 run, checked by hand) | Round 2 | Round 3 |
-| --- | --- | --- | --- | --- |
-| 1 | Top 5 states, App purchases in May | Match (tie hidden) | 1/3 | **3/3** |
-| 2 | WhatsApp campaign interactions in 2024 | Match | 3/3 | **3/3** |
-| 3 | Purchases on average per customer, by category | Different | 3/3 | **2/3** |
-| 4 | Unresolved complaints per channel | Match | 2/3 | **3/3** |
-| 5 | Complaint trend per channel, last year | Match | 3/3 | **3/3** |
+| # | Question (short) | Round 1 (1 run, checked by hand) | Round 2 | Round 3 | Round 4 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Top 5 states, App purchases in May | Match (tie hidden) | 1/3 | 3/3 | **3/3** |
+| 2 | WhatsApp campaign interactions in 2024 | Match | 3/3 | 3/3 | **3/3** |
+| 3 | Purchases on average per customer, by category | Different | 3/3 | 2/3 | **3/3** |
+| 4 | Unresolved complaints per channel | Match | 2/3 | 3/3 | **3/3** |
+| 5 | Complaint trend per channel, last year | Match | 3/3 | 3/3 | **3/3** |
+| | **Answer texts with column names or SQL** | | 3/15 | 3/15 | 4/15 |
 
-Full outputs: [round 2](docs/examples-round-2.md), [round 3](docs/examples-round-3.md).
+Full outputs: [round 2](docs/examples-round-2.md), [round 3](docs/examples-round-3.md),
+[round 4](docs/examples-round-4.md).
 
 Round 2 findings and the fixes made for round 3:
 
@@ -243,10 +251,21 @@ Round 3 notes:
   `tipo_contato = 'Reclamação'`, `tipo = 'Reclamação'`). Two of the round 3 cases echo
   the complaint rule, which was written as SQL in the prompt.
 
-Changes after round 3, from code review, **not yet measured by an eval run**: the
-complaint rule is now written in words, and the top-N template uses `RANK()` instead of
-an `OFFSET` cut-off (the `OFFSET` version returned no rows when a list had fewer than N
-items, for example a top 5 of the 3 support channels).
+Changes for round 4, from code review: the complaint rule is written in words, and the
+top-N template uses `RANK()` instead of an `OFFSET` cut-off (the `OFFSET` version
+returned no rows when a list had fewer than N items, for example a top 5 of the 3
+support channels).
+
+Round 4 notes:
+
+- **Data: 15 of 15 runs matched the reference.** Two caveats: 3 runs per question is a
+  small sample, and these are the same 5 questions the prompt rules were tuned on, so
+  this does not show how the agent does on new questions.
+- **Business language is still not solved: 4 of 15 texts.** The answers no longer echo
+  the complaint rule, but they still write `interagiu = 1` (Q2, twice) or
+  `resolvido = 0` (Q4), and one Q5 answer pasted its SQL. Four other answers end by
+  announcing a SQL query that they do not show. A prompt rule alone does not hold this;
+  a check in code on the answer text would.
 
 ### How to rerun
 
@@ -271,11 +290,10 @@ This is a prototype for the challenge. Before real use it would need:
 - **Raw error text in the UI.** An unexpected exception is shown as
   `Erro ao processar a pergunta: <exception text>`, which can reveal internals. It
   should be logged and replaced by a generic message.
-- **Large values are not bounded.** The 10 s deadline and the 10,000-row cap do not
-  limit the size of a single value: `SELECT randomblob(100000000)` returned one 100 MB
-  cell in 0.6 s. A query like that uses memory and would be sent to the LLM as text.
-  Production needs a byte limit on results (or denying functions such as `randomblob`
-  and `zeroblob`).
+- **Memory per user.** One query is bounded (about 20 MB, see "Bounded queries"; before
+  these limits, `SELECT randomblob(100000000)` returned a 100 MB cell in 0.6 s), but
+  nothing limits how many questions run at once. With many users, production needs
+  per-user limits (see authentication above) and a worker pool.
 
 ## Possible improvements
 
@@ -288,6 +306,10 @@ This is a prototype for the challenge. Before real use it would need:
 - **Stream the steps in the UI.** Show each SQL query as the agent runs it, instead of
   a spinner followed by an expander.
 - **Few-shot examples.** Add a few question/SQL pairs to the prompt for tricky cases.
+- **Check the answer text in code.** Detect column names or SQL in the answer text and
+  ask the model to rewrite it, since the prompt rule alone still lets some through.
+- **New questions in the eval.** The prompt rules were tuned on the 5 challenge
+  questions; a held-out set of questions would measure how well they generalize.
 - **Cost and latency tracking.** Record tokens, number of turns and time per question.
 - **Ask instead of assuming.** For ambiguous questions (for example two reasonable
   definitions of an average), ask the user a clarifying question.
