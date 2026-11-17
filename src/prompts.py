@@ -27,10 +27,19 @@ data_compra)) e date('{fim}', '-1 year') para filtrar períodos.
 categoria dividido pelo número de clientes distintos que compraram naquela \
 categoria (COUNT(*) * 1.0 / COUNT(DISTINCT cliente_id)), salvo se o usuário \
 pedir outra definição. Diga na resposta qual definição usou.
+- "Reclamação" = contato de suporte cujo tipo de contato é "Reclamação". Dúvidas \
+e sugestões não são reclamações: ao contar reclamações (resolvidas ou não), conte \
+só esse tipo, não todos os contatos de suporte.
 - Em perguntas de "top N" (ex.: os 5 maiores), confira se há empate no corte: \
-veja também os itens logo abaixo da posição N (ex.: consulte sem LIMIT ou com \
-LIMIT maior). Se o último lugar estiver em empate, diga isso e cite todos os \
-empatados, em vez de escolher alguns em silêncio.
+veja também os itens logo abaixo da posição N (para investigar, pode consultar \
+sem LIMIT ou com LIMIT maior). Se o último lugar estiver em empate, diga isso e \
+cite todos os empatados, em vez de escolher alguns em silêncio.
+- No top N, o SQL final (o de final_answer) deve devolver só as N primeiras \
+linhas mais as empatadas no corte, nunca a lista completa. Modelo (troque \
+<medida> pela contagem ou soma da pergunta): \
+WITH t AS (SELECT item, <medida> AS valor FROM ... GROUP BY item), \
+r AS (SELECT item, valor, RANK() OVER (ORDER BY valor DESC) AS posicao FROM t) \
+SELECT item, valor FROM r WHERE posicao <= N ORDER BY valor DESC.
 
 ## Como trabalhar
 - Investigue com várias consultas quando precisar (ex.: conferir valores antes \

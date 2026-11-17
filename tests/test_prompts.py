@@ -46,3 +46,27 @@ def test_pede_linguagem_de_negocio_sem_nomes_de_coluna(prompt):
     assert "linguagem de negócio" in prompt
     assert "sem nomes de colunas" in prompt
     assert "Como cheguei aqui" in prompt
+
+
+def test_sql_final_do_top_n_traz_so_o_corte_e_os_empatados(prompt):
+    assert "nunca a lista completa" in prompt
+    # RANK() keeps ties and still works with fewer than N items; an OFFSET cut-off
+    # returned no rows when the list was shorter than N.
+    assert "RANK() OVER" in prompt
+    assert "OFFSET" not in prompt
+
+
+def test_descricao_do_sql_final_pede_so_os_dados_da_resposta():
+    from src.agent import final_answer_tool
+
+    props = final_answer_tool.args_schema.model_json_schema()["properties"]
+    descricao = props["sql"]["description"]
+    assert "exatamente" in descricao
+    assert "exploratória" in descricao
+
+
+def test_define_reclamacao_como_tipo_de_contato(prompt):
+    assert 'tipo de contato é "Reclamação"' in prompt
+    assert "não todos os contatos de suporte" in prompt
+    # Written in words, not SQL: round 3 answers copied the SQL form into the text.
+    assert "tipo_contato = 'Reclamação'" not in prompt
