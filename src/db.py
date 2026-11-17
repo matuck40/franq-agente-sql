@@ -30,6 +30,20 @@ _MSG_GRANDE = (
     "dados necessários, sem gerar valores grandes."
 )
 
+# Largest total size of one result (sum of its values). The per-value cap alone did
+# not bound a result: rows times columns times 1 MB.
+MAX_BYTES_TOTAL = 20_000_000
+
+_MSG_TOTAL = (
+    "Resultado grande demais: passou de {limite} bytes no total. Selecione menos "
+    "colunas ou linhas, ou agregue os dados."
+)
+
+
+def _tamanho(valor: object) -> int:
+    """Approximate bytes of one value: length for text and blobs, 8 otherwise."""
+    return len(valor) if isinstance(valor, (str, bytes)) else 8
+
 
 class SQLError(Exception):
     """SQL error; its message is shown to the LLM so it can fix the query."""
@@ -97,15 +111,24 @@ def run_query(
             conn.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, MAX_BYTES_POR_VALOR)
             conn.set_progress_handler(_checar_prazo, _PASSOS_ENTRE_CHECAGENS)
             with closing(conn.execute(sql)) as cur:
-                linhas = cur.fetchmany(max_linhas + 1)
                 colunas = [d[0] for d in cur.description or []]
+                # Row by row, so memory stays near MAX_BYTES_TOTAL even when each
+                # value is under the per-value cap (150 rows of ~1 MB ran in 0.013 s).
+                linhas, total = [], 0
+                for linha in cur:
+                    linhas.append(linha)
+                    total += sum(_tamanho(v) for v in linha)
+                    if total > MAX_BYTES_TOTAL:
+                        raise SQLError(_MSG_TOTAL.format(limite=MAX_BYTES_TOTAL))
+                    if len(linhas) > max_linhas:
+                        break
     except (sqlite3.Error, sqlite3.Warning) as e:
         if estourou:
             raise SQLError(
                 f"A consulta demorou mais de {timeout_s:g} s e foi interrompida; "
                 "simplifique a consulta ou adicione filtros."
             ) from e
-        if "too big" in str(e):  # SQLite: "string or blob too big"
+        if getattr(e, "sqlite_errorcode", None) == sqlite3.SQLITE_TOOBIG:
             raise SQLError(_MSG_GRANDE.format(limite=MAX_BYTES_POR_VALOR)) from e
         if "prohibited" in str(e):  # SQLite: "access to clientes.nome is prohibited"
             raise SQLError(_MSG_PESSOAIS.format(detalhe=e)) from e
