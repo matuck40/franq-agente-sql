@@ -222,9 +222,10 @@ Full outputs: [round 2](docs/examples-round-2.md), [round 3](docs/examples-round
 
 Round 2 findings and the fixes made for round 3:
 
-- **Q1 (1/3).** All 3 answer texts were right and named the tie, but in 2 runs the final
-  SQL was the exploratory query without `LIMIT`, so the table showed all 15 states. The
-  tie rule had suggested querying without `LIMIT` to check for ties. Fix: the prompt
+- **Q1 (1/3).** All 3 answer texts were right and named the tie, but the data matched in
+  only 1 run. In run 1 (the run whose SQL is saved) the final SQL was the exploratory
+  query without `LIMIT`, so the table showed all 15 states; the tie rule had suggested
+  querying without `LIMIT` to check for ties. Fix: the prompt
   separates exploring from the final query and gives a cut-off query template; the
   `final_answer` tool asks for exactly the answer's rows.
 - **Q4 (2/3).** One run counted every unresolved support contact (138) instead of
@@ -238,8 +239,14 @@ Round 3 notes:
   categories. The question ("Quais categorias...") allows both readings. The check was
   not relaxed after seeing the result.
 - **Business language.** Some answer texts still used column names or SQL: 3 of 15 in
-  round 2 (one pasted its whole SQL) and 2 of 15 in round 3 (`interagiu = 1`,
-  `tipo_contato = 'Reclamação'`). The prompt rule reduces this but does not remove it.
+  round 2 (one pasted its whole SQL) and 3 of 15 in round 3 (`interagiu = 1`,
+  `tipo_contato = 'Reclamação'`, `tipo = 'Reclamação'`). Two of the round 3 cases echo
+  the complaint rule, which was written as SQL in the prompt.
+
+Changes after round 3, from code review, **not yet measured by an eval run**: the
+complaint rule is now written in words, and the top-N template uses `RANK()` instead of
+an `OFFSET` cut-off (the `OFFSET` version returned no rows when a list had fewer than N
+items, for example a top 5 of the 3 support channels).
 
 ### How to rerun
 
