@@ -3,19 +3,20 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# Ambiente virtual
+# Virtual environment
 .venv/
 
-# Segredos
+# Secrets
 .env
 .env.*
 
-# Dados (o banco do desafio não vai para o repositório)
+# Data (the challenge database is not committed)
 data/*
 !data/.gitkeep
 
-# Sistema
+# OS
 .DS_Store
 
-# Padrão pessoal de trabalho (fica só local)
+# Personal working notes (local only)
 PADRAO-DESENVOLVIMENTO.md
+!.env.example
