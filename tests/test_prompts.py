@@ -46,3 +46,17 @@ def test_pede_linguagem_de_negocio_sem_nomes_de_coluna(prompt):
     assert "linguagem de negócio" in prompt
     assert "sem nomes de colunas" in prompt
     assert "Como cheguei aqui" in prompt
+
+
+def test_sql_final_do_top_n_traz_so_o_corte_e_os_empatados(prompt):
+    assert "nunca a lista completa" in prompt
+    assert "OFFSET" in prompt  # example of the cut-off query
+
+
+def test_descricao_do_sql_final_pede_so_os_dados_da_resposta():
+    from src.agent import final_answer_tool
+
+    props = final_answer_tool.args_schema.model_json_schema()["properties"]
+    descricao = props["sql"]["description"]
+    assert "exatamente" in descricao
+    assert "exploratória" in descricao

@@ -53,7 +53,8 @@ class _RunSqlArgs(BaseModel):
 class _FinalAnswerArgs(BaseModel):
     texto: str = Field(description="Resposta final ao usuário, em português.")
     sql: str | None = Field(
-        description="SQL que gera os dados a exibir, ou null se não houver dados."
+        description="SQL que gera exatamente os dados da resposta (só as linhas "
+        "citadas no texto, não uma consulta exploratória), ou null se não houver dados."
     )
     visualizacao: Visualizacao = Field(description="Como exibir os dados.")
     x: str | None = Field(description="Coluna do eixo x (linha/barra), ou null.")
