@@ -100,6 +100,18 @@ whole result. Tracing is off by default, and tests never send traces
 under [Known risks](#known-risks-and-what-production-would-need) applies to LangSmith
 too.
 
+Example: Q5 ("Qual a tendência de reclamações por canal no último ano?"),
+[public trace](https://smith.langchain.com/public/f3d384b6-8642-49fb-9e6a-7d05366ccd74/r/01a1e83c-6dac-7468-a241-376c86275dc5).
+`ask` is the root: three agent turns (two `run_query` calls, then `final_answer`) and,
+last, the re-run of the final SQL. Of the 30 s, the three OpenAI calls took about 30 s
+(8.0, 3.4 and 18.8 s) and the three queries about 0.02 s; the last turn, which writes
+the long answer, was the slowest. So latency is cut by fewer turns or shorter answers,
+not by faster SQL.
+
+| Trace tree | Waterfall (timeline) |
+| --- | --- |
+| ![LangSmith trace tree for Q5](docs/img/langsmith-tree.png) | ![LangSmith waterfall for Q5](docs/img/langsmith-waterfall.png) |
+
 Code layout:
 
 | File | Role |
