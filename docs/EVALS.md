@@ -44,7 +44,9 @@ All rounds used `gpt-5-mini` on 2026-11-17.
 | | Answer texts with column names or SQL | | 3/15 | 3/15 | 4/15 |
 
 Full outputs: [round 1](examples-round-1.md), [round 2](examples-round-2.md),
-[round 3](examples-round-3.md), [round 4](examples-round-4.md).
+[round 3](examples-round-3.md), [round 4](examples-round-4.md). After round 4 the Q1
+reference SQL switched from an `OFFSET` cut-off to `RANK()`, as in the prompt; it
+returns the same 6 rows, so the outputs above still show the old query.
 
 ## Round 1
 

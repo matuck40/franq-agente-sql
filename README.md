@@ -8,9 +8,9 @@ under "Como cheguei aqui". Built with LangGraph, OpenAI (`gpt-5-mini`) and Strea
 
 ![The agent answering "Qual a tendência de reclamações por canal no último ano?"](docs/img/hero.png)
 
-*Question 5 in the app (current version). The answer's recommendations, between the
-summary and the chart, are cropped out of this image; the full answer is in
-[the screenshots below](#screenshots).*
+*Question 5 in the app (current version). Two parts between the summary and the chart
+are cropped out of this image: the recommendations and a line naming the chart's columns
+(`serie = canal`). The full answer is in [the screenshots below](#screenshots).*
 
 **Results.** On the 5 example questions from the challenge, run 3 times each, all 15
 runs returned the same data as a hand-written reference query (eval round 4). The answer
@@ -73,8 +73,9 @@ START --> agent <---> tools
   Self-correction comes from feeding the real SQL error back to the same agent.
 - **The final answer is a tool call, not free text.** It returns structured fields
   (SQL, chart type, columns) that code can validate, instead of parsing prose.
-- **Numbers on screen come from the database, not from the LLM.** Code re-runs the final
-  SQL and draws the table or chart from that result.
+- **Table and chart numbers come from the database, not from the LLM.** Code re-runs the
+  final SQL and draws the table or chart from that result. The answer text, including any
+  numbers in it, is written by the LLM.
 - **Safety lives in the database layer, not in the prompt.** Whatever the user or the
   model writes, the connection can only read, cannot read personal columns, and is
   bounded in time and size.
