@@ -50,7 +50,10 @@ def test_pede_linguagem_de_negocio_sem_nomes_de_coluna(prompt):
 
 def test_sql_final_do_top_n_traz_so_o_corte_e_os_empatados(prompt):
     assert "nunca a lista completa" in prompt
-    assert "OFFSET" in prompt  # example of the cut-off query
+    # RANK() keeps ties and still works with fewer than N items; an OFFSET cut-off
+    # returned no rows when the list was shorter than N.
+    assert "RANK() OVER" in prompt
+    assert "OFFSET" not in prompt
 
 
 def test_descricao_do_sql_final_pede_so_os_dados_da_resposta():
@@ -63,5 +66,7 @@ def test_descricao_do_sql_final_pede_so_os_dados_da_resposta():
 
 
 def test_define_reclamacao_como_tipo_de_contato(prompt):
-    assert "tipo_contato = 'Reclamação'" in prompt
+    assert 'tipo de contato é "Reclamação"' in prompt
     assert "não todos os contatos de suporte" in prompt
+    # Written in words, not SQL: round 3 answers copied the SQL form into the text.
+    assert "tipo_contato = 'Reclamação'" not in prompt
