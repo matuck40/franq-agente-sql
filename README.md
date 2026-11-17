@@ -87,8 +87,11 @@ Code layout:
 - **Bounded queries.** Each query is interrupted after 10 s (an SQLite progress
   handler checks a deadline) and at most 10,000 rows are fetched. A timeout comes back
   to the LLM as an error asking for a simpler query; when the row cap is hit, the text
-  sent to the LLM says the result was truncated. This applies both to the agent's
-  queries and to the re-execution of the final SQL.
+  sent to the LLM says the result was truncated. Any single string or blob is limited
+  to 1 MB (`SQLITE_LIMIT_LENGTH`; SQLite's default is 1 GB), so functions such as
+  `randomblob` or `printf` cannot build a huge value, and the CSV sent to the LLM is cut
+  at 20,000 characters. This applies both to the agent's queries and to the
+  re-execution of the final SQL.
 - **Table and chart data come from code; the answer text comes from the LLM.** The
   agent returns the final SQL; the code re-executes it and draws the table or chart from
   that result, so the data on screen is never copied from LLM text. The answer text
@@ -284,11 +287,11 @@ This is a prototype for the challenge. Before real use it would need:
 - **Raw error text in the UI.** An unexpected exception is shown as
   `Erro ao processar a pergunta: <exception text>`, which can reveal internals. It
   should be logged and replaced by a generic message.
-- **Large values are not bounded.** The 10 s deadline and the 10,000-row cap do not
-  limit the size of a single value: `SELECT randomblob(100000000)` returned one 100 MB
-  cell in 0.6 s. A query like that uses memory and would be sent to the LLM as text.
-  Production needs a byte limit on results (or denying functions such as `randomblob`
-  and `zeroblob`).
+- **Memory per query.** Values are capped at 1 MB each and rows at 10,000, so in
+  theory one result could reach about 10 GB (10,000 rows of 1 MB values). The 10 s
+  deadline should stop this well before that, but it was not measured. Before the 1 MB
+  cap, `SELECT randomblob(100000000)` returned a 100 MB cell in 0.6 s. Production
+  should also cap the total bytes of a result.
 
 ## Possible improvements
 
