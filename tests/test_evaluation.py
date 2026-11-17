@@ -55,3 +55,18 @@ def test_modo_minimo_aceita_subconjunto_com_empates():
     assert not mesmos_dados(quatro, ref, ["estado", "clientes"], minimo=5)
     errado = pd.DataFrame({"uf": ["SP", "MG", "SC", "PR", "RJ"], "n": [6, 3, 3, 2, 2]})
     assert not mesmos_dados(errado, ref, ["estado", "clientes"], minimo=5)
+
+
+def test_modo_minimo_exige_as_linhas_acima_do_empate():
+    ref = pd.DataFrame(
+        {"estado": ["SP", "MG", "SC", "PR", "ES", "AL"], "clientes": [6, 3, 3, 2, 2, 2]}
+    )
+    sem_o_primeiro = pd.DataFrame(
+        {"uf": ["MG", "SC", "PR", "ES", "AL"], "n": [3, 3, 2, 2, 2]}
+    )
+    assert not mesmos_dados(sem_o_primeiro, ref, ["estado", "clientes"], minimo=5)
+
+
+def test_valores_vazios_batem_entre_si():
+    ref = pd.DataFrame({"canal": ["Chat", None], "n": [1.0, float("nan")]})
+    assert mesmos_dados(ref.copy(), ref, ["canal", "n"])

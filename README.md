@@ -146,8 +146,8 @@ ano" means 2025-07-22 minus one year up to 2025-07-22, "reclamações" means
 1. **Liste os 5 estados com maior número de clientes que compraram via app em maio.**
    Distinct customers per state with an `App` purchase in May:
    São Paulo 6, Minas Gerais 3, Santa Catarina 3, then a three-way tie at 2 (Alagoas,
-   Espírito Santo, Paraná). The reference lists all three tied states; any 5 of these
-   6 rows count as a correct answer.
+   Espírito Santo, Paraná). The reference lists all three tied states; an answer is
+   correct if it has the first three states and at least two of the tied ones.
 2. **Quantos clientes interagiram com campanhas de WhatsApp em 2024?**
    17 distinct customers (`interagiu = 1`, channel WhatsApp, `data_envio` in 2024).
 3. **Quais categorias de produto tiveram o maior número de compras em média por cliente?**
@@ -189,7 +189,7 @@ Screenshots of round 1 in the app:
 | --- | --- | --- |
 | ![Q4](docs/img/q4.png) | ![Q5 text](docs/img/q5-texto.png) | ![Q5 chart](docs/img/q5-grafico.png) |
 
-Fixes made after round 1 (each with a test):
+Fixes made after round 1 (each change in `src/` and `app.py` has a test):
 
 - Prompt: definition of "average per customer" (Q3), partial first and last months (Q5),
   ties at a top-N cut (Q1), business language in the answer text (Q2).
@@ -197,7 +197,9 @@ Fixes made after round 1 (each with a test):
 - The database denies reading `clientes.nome` and `clientes.email`.
 - `scripts/run_examples.py --repeat [N]` runs each question N times (3 by default) and
   reports how many runs matched the reference data, to measure consistency. The match
-  ignores the agent's column names and compares numbers at 2 decimals.
+  ignores the agent's column names and compares numbers at 2 decimals. For Q1 the
+  states above the tie are required and any of the tied states can fill 5th place. A
+  run that raises an error counts as not matching, and the other runs go on.
 
 ### How to rerun
 

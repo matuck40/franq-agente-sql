@@ -112,7 +112,12 @@ def run_agent_examples(repeat: int = 1):
         runs = []
         for r in range(1, repeat + 1):
             print(f"[{i}/{len(EXAMPLES)}] run {r}/{repeat}: {ex['question']}", flush=True)
-            res = ask(ex["question"], llm)
+            try:
+                res = ask(ex["question"], llm)
+            except Exception as e:  # noqa: BLE001 - one failed run must not lose the others
+                print(f"    run {r} failed: {e}", flush=True)
+                res = {"texto": f"(run failed: {e})", "visualizacao": None, "passos": [],
+                       "sql": None, "dados": None}
             runs.append((res, matches_reference(res["dados"], ref, ex)))
         acertos = sum(ok for _, ok in runs)
         resumo.append(f"| {i} | {ex['question']} | {acertos}/{repeat} |")
