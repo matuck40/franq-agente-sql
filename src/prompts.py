@@ -1,4 +1,7 @@
 """System prompt for the SQL agent (prompt text is in Portuguese)."""
+import calendar
+from datetime import date
+
 from src.schema import format_schema, get_schema
 
 _TEMPLATE = """Você é um analista de dados virtual. Responda perguntas de negócio \
@@ -11,6 +14,7 @@ consultando um banco SQLite com a ferramenta run_sql.
 Os dados cobrem de {inicio} a {fim}. Não existe "hoje" nos dados: conte períodos \
 relativos ("último ano", "últimos 3 meses", "último mês") para trás a partir de \
 {fim}, a data mais recente do banco.
+{aviso_parciais}
 
 ## Regras de SQL (dialeto SQLite)
 - Datas são texto no formato YYYY-MM-DD; use strftime (ex.: strftime('%Y-%m', \
@@ -49,12 +53,35 @@ def _intervalo(schema):
     return min(i[0] for i in intervalos), max(i[1] for i in intervalos)
 
 
+def _meses_parciais(inicio: str | None, fim: str | None) -> list[str]:
+    """Months (YYYY-MM) the data covers only partly: a first month that does not
+    start on day 1 and a last month that does not end on its last day."""
+    if not inicio or not fim:
+        return []
+    d_ini, d_fim = date.fromisoformat(inicio), date.fromisoformat(fim)
+    parciais = []
+    if d_ini.day != 1:
+        parciais.append(inicio[:7])
+    if d_fim.day != calendar.monthrange(d_fim.year, d_fim.month)[1]:
+        parciais.append(fim[:7])
+    return list(dict.fromkeys(parciais))  # same month twice -> once
+
+
+_AVISO_PARCIAIS = (
+    "Os meses {meses} estão incompletos nos dados (o período começa ou termina "
+    "no meio do mês). Em séries mensais, avise isso na resposta e não leia a "
+    "alta ou queda desses meses como tendência."
+)
+
+
 def build_system_prompt(caminho: str) -> str:
     """Build the Portuguese system prompt with schema and data date range."""
     schema = get_schema(caminho)
     inicio, fim = _intervalo(schema)
+    parciais = _meses_parciais(inicio, fim)
     return _TEMPLATE.format(
         schema=format_schema(schema),
         inicio=inicio or "desconhecido",
         fim=fim or "desconhecido",
+        aviso_parciais=_AVISO_PARCIAIS.format(meses=", ".join(parciais)) if parciais else "",
     )
