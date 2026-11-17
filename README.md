@@ -98,9 +98,11 @@ Code layout:
   (for example `date('2025-07-22', '-1 year')`). It also names the partial first and
   last months (computed from the data range) so a short month is not read as a trend.
 - **Business rules in the prompt.** "Average per customer" in a category means
-  purchases divided by distinct buyers of that category; a top-N cut that falls inside a
-  tie must be reported with every tied item; the answer text uses business language,
-  not column names or SQL (the SQL is shown under "Como cheguei aqui").
+  purchases divided by distinct buyers of that category; "complaint" means a support
+  contact of type `Reclamação`, not every support contact; a top-N cut that falls inside
+  a tie must be reported with every tied item, and the final SQL returns only the top N
+  plus the tied rows; the answer text uses business language, not column names or SQL
+  (the SQL is shown under "Como cheguei aqui").
 - **Personal data is blocked by the database.** The schema given to the LLM lists only
   column names, types, categories and date ranges; `clientes.nome` and `clientes.email`
   are never sampled. On top of that, the SQLite authorizer denies reading those two
@@ -175,7 +177,8 @@ app. This round used the code before the fixes listed below.
 
 Other findings: bar charts were drawn in alphabetical order, so rankings (Q1, Q4) lost
 their order; and Q3 was not consistent: in a scripted run
-(`python scripts/run_examples.py`, saved in [`docs/examples.md`](docs/examples.md)) the
+(`python scripts/run_examples.py`, saved in
+[`docs/examples-round-1.md`](docs/examples-round-1.md)) the
 agent computed both definitions and its data matched the reference, while in the app it
 gave only the "all customers" one.
 
@@ -201,10 +204,48 @@ Fixes made after round 1 (each change in `src/` and `app.py` has a test):
   states above the tie are required and any of the tied states can fill 5th place. A
   run that raises an error counts as not matching, and the other runs go on.
 
+### Eval rounds 2 and 3 (gpt-5-mini, 2026-11-17)
+
+Scripted runs with `python scripts/run_examples.py --repeat` (each question 3 times),
+checked automatically against the reference data. Round 2 used the fixes above; round 3
+added two more prompt fixes based on round 2.
+
+| # | Question (short) | Round 1 (1 run, checked by hand) | Round 2 | Round 3 |
+| --- | --- | --- | --- | --- |
+| 1 | Top 5 states, App purchases in May | Match (tie hidden) | 1/3 | **3/3** |
+| 2 | WhatsApp campaign interactions in 2024 | Match | 3/3 | **3/3** |
+| 3 | Purchases on average per customer, by category | Different | 3/3 | **2/3** |
+| 4 | Unresolved complaints per channel | Match | 2/3 | **3/3** |
+| 5 | Complaint trend per channel, last year | Match | 3/3 | **3/3** |
+
+Full outputs: [round 2](docs/examples-round-2.md), [round 3](docs/examples-round-3.md).
+
+Round 2 findings and the fixes made for round 3:
+
+- **Q1 (1/3).** All 3 answer texts were right and named the tie, but in 2 runs the final
+  SQL was the exploratory query without `LIMIT`, so the table showed all 15 states. The
+  tie rule had suggested querying without `LIMIT` to check for ties. Fix: the prompt
+  separates exploring from the final query and gives a cut-off query template; the
+  `final_answer` tool asks for exactly the answer's rows.
+- **Q4 (2/3).** One run counted every unresolved support contact (138) instead of
+  unresolved complaints (51). Fix: the prompt defines a complaint as a contact of type
+  `Reclamação`.
+
+Round 3 notes:
+
+- **Q3 (2/3).** The run that did not match answered only the top category (Roupas, 2.211
+  purchases per customer, with the right definition); the check expects all 6
+  categories. The question ("Quais categorias...") allows both readings. The check was
+  not relaxed after seeing the result.
+- **Business language.** Some answer texts still used column names or SQL: 3 of 15 in
+  round 2 (one pasted its whole SQL) and 2 of 15 in round 3 (`interagiu = 1`,
+  `tipo_contato = 'Reclamação'`). The prompt rule reduces this but does not remove it.
+
 ### How to rerun
 
 `python scripts/run_examples.py --repeat` (needs `OPENAI_API_KEY`) runs the agent on the
-5 questions 3 times each and writes `docs/examples.md`: a summary of matching runs per
+5 questions 3 times each and writes `docs/examples.md` (the latest run; each round above
+is kept in its own file): a summary of matching runs per
 question, then, for each question, the final text, the requested visualization, every
 SQL step with its row count, the final SQL and data, and the reference SQL and result
 side by side.
