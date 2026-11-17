@@ -160,6 +160,10 @@ def _build_graph(llm, caminho: str, max_passos: int):
     return grafo.compile()
 
 
+# Extra graph steps allowed beyond 2 per agent turn (agent + tools).
+_FOLGA_RECURSAO = 5
+
+
 def _fallback(passos: list[Passo], erro: str | None = None) -> Resultado:
     if erro is None:
         erros = [p["erro"] for p in passos if p["erro"]]
@@ -191,11 +195,15 @@ def ask(
         "rodadas": 0,
     }
     # Safety net on top of the round counter: never loop without bound.
-    config = {"recursion_limit": 2 * max_passos + 5}
+    config = {"recursion_limit": 2 * max_passos + _FOLGA_RECURSAO}
+    estado = entrada
     try:
-        estado = grafo.invoke(entrada, config=config)
+        # stream (not invoke) keeps the latest state, so the steps already run are
+        # still shown if the safety net stops the graph.
+        for estado in grafo.stream(entrada, config=config, stream_mode="values"):
+            pass
     except GraphRecursionError:
-        return _fallback([])
+        return _fallback(estado["passos"])
     passos = estado["passos"]
     ultima = estado["messages"][-1]
     calls = _tool_calls(ultima)
