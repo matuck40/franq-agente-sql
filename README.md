@@ -50,11 +50,17 @@ Tests that need the database skip if it is missing.
 
 ## Agent flow and architecture
 
+```mermaid
+graph TD;
+    __start__([start]) --> agent;
+    agent -.-> tools;
+    tools -.-> agent;
+    agent -.-> __end__([end]);
+    tools -.-> __end__;
 ```
-START --> agent <---> tools
-            |
-            +--> END
-```
+
+The diagram comes from the graph itself (`get_graph().draw_mermaid()`); dashed edges
+are conditional.
 
 - `agent`: the LLM, with two tools bound, reads the conversation and calls either
   `run_sql` (run one query, get rows or the error) or `final_answer` (answer text, final
@@ -81,6 +87,31 @@ START --> agent <---> tools
   bounded in time and size.
 - **LangGraph** makes the loop explicit: state (the steps), turn limits and the stop
   condition are code, and the whole graph is tested with a fake LLM.
+
+### Observing runs with LangSmith
+
+Optional. With `LANGSMITH_TRACING=true`, `LANGSMITH_API_KEY` and `LANGSMITH_PROJECT`
+in `.env` (see `.env.example`), each question becomes one trace in
+[LangSmith](https://smith.langchain.com): every LLM call with its prompt, answer, tokens
+and latency, and every SQL execution as its own `run_query` step. For each query the
+trace keeps the SQL, the row count, the column names and the first 5 rows, not the
+whole result. Tracing is off by default, and tests never send traces
+(`tests/conftest.py`). Traces contain prompts and query results, so the LGPD note
+under [Known risks](#known-risks-and-what-production-would-need) applies to LangSmith
+too.
+
+Example: Q5 ("Qual a tendência de reclamações por canal no último ano?"),
+[public trace](https://smith.langchain.com/public/f3d384b6-8642-49fb-9e6a-7d05366ccd74/r/01a1e83c-6dac-7468-a241-376c86275dc5).
+`ask` is the root: three agent turns (the first two call `run_query`; the third calls
+`final_answer`, which ends the graph without a `tools` step) and, last, the re-run of
+the final SQL. Of the 30.3 s, the three OpenAI calls took 30.2 s
+(8.0, 3.4 and 18.8 s) and the three queries about 0.02 s; the last turn, which writes
+the long answer, was the slowest. So latency is cut by fewer turns or shorter answers,
+not by faster SQL.
+
+| Trace tree | Waterfall (timeline) |
+| --- | --- |
+| ![LangSmith trace tree for Q5](docs/img/langsmith-tree.png) | ![LangSmith waterfall for Q5](docs/img/langsmith-waterfall.png) |
 
 Code layout:
 
@@ -180,7 +211,7 @@ canal`), the open issue above.
 This is a prototype for the challenge. Before real use it would need:
 
 - **Data sent to a third party (LGPD).** Query results (up to 200 rows per query) go to
-  OpenAI. Names and e-mails are blocked, but customer ids, states and purchase history
+  OpenAI, and to LangSmith if tracing is on. Names and e-mails are blocked, but customer ids, states and purchase history
   still leave the company. Production needs a legal basis and a data processing
   agreement, or a model hosted in-house.
 - **No authentication or rate limit.** Anyone who can open the app can ask unlimited
@@ -206,4 +237,5 @@ This is a prototype for the challenge. Before real use it would need:
   events for the steps).
 - **Cache the schema.** It is read from the database on every question; compute it once
   per process.
-- **Cost and latency tracking.** Record tokens, turns and time per question.
+- **Cost and latency dashboards.** LangSmith already shows tokens and latency per
+  trace; track them per question over time and alert on regressions.

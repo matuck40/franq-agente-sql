@@ -220,3 +220,16 @@ def test_limite_de_recursao_mantem_os_passos_feitos(monkeypatch):
     assert "Não consegui" in r["texto"]
     assert len(r["passos"]) >= 1  # steps already run are shown, not dropped
     assert "no such column" in r["texto"]
+
+
+def test_ask_e_a_raiz_do_trace_no_langsmith():
+    # ask() is the root, so the graph and the final SQL re-run share one trace.
+    from langsmith.run_helpers import is_traceable_function
+
+    assert is_traceable_function(ask)
+
+
+def test_saida_do_trace_aceita_none():
+    from src.agent import _saida_para_trace
+
+    assert _saida_para_trace(None) == {}

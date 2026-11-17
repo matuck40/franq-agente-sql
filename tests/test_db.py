@@ -158,3 +158,33 @@ def test_erro_de_tabela_com_nome_too_big_nao_vira_valor_grande():
     with pytest.raises(SQLError, match="no such table") as erro:
         run_query('SELECT * FROM "too big"', DB_PATH)
     assert "grande demais" not in str(erro.value)
+
+
+def test_run_query_aparece_como_passo_no_langsmith():
+    from langsmith.run_helpers import is_traceable_function
+
+    assert is_traceable_function(run_query)
+
+
+def test_resumo_para_o_trace_nao_envia_a_tabela_inteira():
+    from src.db import resumo_para_trace
+
+    df = run_query("SELECT * FROM compras", DB_PATH)  # 946 rows
+    resumo = resumo_para_trace(df)
+    assert resumo["linhas"] == 946
+    assert resumo["colunas"] == list(df.columns)
+    assert len(resumo["amostra"]) == 5  # first rows only, not the whole table
+    assert resumo["truncado"] is False
+
+
+def test_resumo_aceita_none_quando_a_consulta_falha():
+    # On a failed query the tracing library calls the summarizer with None.
+    from src.db import resumo_para_trace
+
+    assert resumo_para_trace(None) == {}
+
+
+def test_consulta_com_erro_nao_gera_aviso_de_trace(caplog):
+    with pytest.raises(SQLError):
+        run_query("SELECT coluna_inexistente FROM clientes", DB_PATH)
+    assert "process_outputs failed" not in caplog.text
