@@ -1,3 +1,26 @@
+[project]
+name = "franq-agente-sql"
+version = "0.1.0"
+description = "Virtual data analyst: an LLM agent that answers business questions with SQL"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "pandas==3.1.1",
+    "langgraph==1.2.21",
+    "langchain-core==1.8.0",
+    "langchain-openai==1.7.4",
+    "python-dotenv==1.2.4",
+    "streamlit==1.67.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "ruff==0.17.5",
+]
+
+[tool.uv]
+package = false
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]

@@ -10,21 +10,38 @@ The database (`anexo_desafio_1.db`, from the challenge) has four tables: `client
 
 ## How to run
 
-Requirements: Python 3.11, an OpenAI API key, and the challenge database file.
+Requirements: an OpenAI API key and the challenge database file.
+
+Put the challenge database at `data/anexo_desafio_1.db` (it is not in git), then:
+
+```bash
+cp .env.example .env          # then set OPENAI_API_KEY in .env
+# optional: LLM_MODEL in .env (default: gpt-5-mini)
+```
+
+### With uv (recommended)
+
+[uv](https://docs.astral.sh/uv/) installs Python 3.11 if needed and the exact versions in
+`uv.lock`:
+
+```bash
+uv sync
+uv run streamlit run app.py   # chat UI; the sidebar has the 5 example questions
+uv run pytest                 # tests; the ones needing the database skip if it is missing
+uv run ruff check .           # lint
+```
+
+### With pip
+
+Needs Python 3.11 installed. `requirements.txt` pins the direct dependencies only.
 
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-cp .env.example .env          # then set OPENAI_API_KEY in .env
-# optional: LLM_MODEL in .env (default: gpt-5-mini)
-
-# put the challenge database at data/anexo_desafio_1.db (it is not in git)
-
-streamlit run app.py          # chat UI; the sidebar has the 5 example questions
-pytest                        # tests; the ones needing the database skip if it is missing
-ruff check .                  # lint
+streamlit run app.py
+pytest
+ruff check .
 ```
 
 ## Agent flow and architecture
